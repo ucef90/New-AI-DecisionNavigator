@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useFormState, useFormStatus } from "react-dom"
 import { UploadSimple, CircleNotch } from "@phosphor-icons/react/dist/ssr"
 
@@ -29,6 +31,12 @@ function SubmitButton() {
 
 export function VendorForm({ projectId }: { projectId: string }) {
   const [state, formAction] = useFormState(analyzeVendor, {})
+  const router = useRouter()
+
+  // Rafraîchit la page pour afficher la nouvelle analyse.
+  useEffect(() => {
+    if (state.ok) router.refresh()
+  }, [state.ok, router])
 
   return (
     <form action={formAction} className="space-y-5">

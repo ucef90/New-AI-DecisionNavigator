@@ -91,9 +91,11 @@ export async function analyzeVendor(
   // 1) Tentative avec le provider configuré (mode JSON + timeout).
   let result: VendorResult | null = null
   try {
+    // Fenêtre courte : si le LLM local ne répond pas vite, on bascule sur
+    // l'analyse déterministe (basée sur le document) sans faire attendre l'agent.
     const raw = await getLLMProvider().complete(prompt, {
       json: true,
-      timeoutMs: 60_000,
+      timeoutMs: 12_000,
     })
     result = parseVendor(raw)
   } catch (e) {
