@@ -25,6 +25,8 @@ export class OllamaProvider implements LLMProvider {
       body: JSON.stringify({
         model: this.model,
         stream: false,
+        // Garde le modèle en mémoire 30 min → évite ~30s de rechargement à froid.
+        keep_alive: "30m",
         ...(opts.json ? { format: "json" } : {}),
         options: { temperature: 0.2 },
         messages: [

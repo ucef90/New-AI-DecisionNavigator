@@ -2,9 +2,33 @@
 
 Outil de pré-cadrage IA pour chefs de projet de collectivités publiques. Il guide vers une décision argumentée (**GO / POC / ÉTUDE / AUTOMATISATION / NO GO**), recommande un type de technologie (RPA, ML, LLM, RAG, OCR, AGENT), liste les obligations réglementaires (RGPD, IA Act, ISO 42001) et produit un rapport PDF d'une page — le tout en moins de 15 minutes.
 
-## Stack
+## Stack technologique
 
-Next.js 14 (App Router) · TypeScript · Tailwind + shadcn/ui · Prisma (SQLite en dev, PostgreSQL en prod) · abstraction LLM (OpenAI / Mistral / Ollama / Stub) · @react-pdf/renderer.
+> Versions issues de `package.json`. Détail complet : [docs/TECH-STACK.md](docs/TECH-STACK.md).
+
+| Couche | Technologies clés |
+|---|---|
+| **Framework** | Next.js 14.2 (App Router, RSC, Server Actions) |
+| **Langage** | TypeScript 5 · React 18 · Node 20+ |
+| **UI / Design** | Tailwind CSS 3.4 · shadcn/ui (Radix UI) · animate-ui · Motion 12 · Phosphor Icons · next-themes |
+| **Base de données** | SQLite (dev) / PostgreSQL 15 (prod) via Prisma 6 |
+| **IA / LLM** | Abstraction multi-provider : Ollama (local) · OpenAI · Mistral · Stub déterministe |
+| **PDF / documents** | @react-pdf/renderer (génération) · pdf-parse (extraction) |
+| **Déploiement** | Docker + Docker Compose (on-premise souverain) |
+
+### Détail par domaine
+
+**Cœur** — Next.js 14.2 (App Router, Server Components, Server Actions, route handlers) · React 18 · TypeScript 5.
+
+**Base de données & ORM** — Prisma 6.19 (schéma typé, migrations, seed, Studio) ; SQLite en dev, PostgreSQL en prod (changer le `provider` dans `schema.prisma`). Modèles : `User`, `Project`, `Answer`, `Decision`, `RegulatoryAlert`, `VendorAnalysis`, `Report`, `Attachment`, `AuditLog`.
+
+**IA / LLM** — couche d'abstraction maison (`lib/llm/`, interface `complete()`), provider sélectionné via `LLM_PROVIDER` : **Ollama** (local, souverain), **OpenAI**, **Mistral**, **Stub** (déterministe, sans clé). 3 prompts métier (reformulation Q1, analyse fournisseur, rapport) avec mode JSON, timeout et repli automatique sur le Stub. Le **moteur de décision** (`lib/engine/`) est 100 % déterministe (aucun LLM).
+
+**UI / animation** — Tailwind 3.4 · shadcn/ui sur Radix UI (dialog, select, checkbox, radio, tabs, dropdown, table…) · animate-ui (RotatingText, SlidingNumber, GradientBackground, RippleButton, icônes animées) · Motion 12 (reveals, radar, transitions, `prefers-reduced-motion`) · Phosphor Icons · next-themes (clair/sombre) · sonner (toasts) · CVA + tailwind-merge · DM Sans.
+
+**PDF / documents** — @react-pdf/renderer 4.5 (rapport : bannière, barres de score, radar SVG, jauge de risque) · pdf-parse 2.4 (extraction de texte ; déclaré en `serverComponentsExternalPackages`, `bodySizeLimit` à 15 Mo).
+
+**Outils** — ESLint 8 · tsx 4.22 (seed) · PostCSS 8.
 
 ## Démarrage (développement)
 
