@@ -1,0 +1,43 @@
+# Déploiement on-premise — cible SPEC (PostgreSQL + Ollama).
+#
+# PRÉREQUIS : dans prisma/schema.prisma, mettre le provider de la datasource
+# à "postgresql" (au lieu de "sqlite"), car Prisma ne permet pas de choisir
+# le provider via une variable d'environnement.
+#
+#   docker compose -f docker-compose.postgres.yml up --build
+#   docker compose -f docker-compose.postgres.yml exec ollama ollama pull mistral
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_URL=postgresql://postgres:password@db:5432/precadrage
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=mistral
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me-in-production}
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXT_PUBLIC_APP_NAME=AI Pré-Cadrage
+    depends_on:
+      - db
+      - ollama
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: precadrage
+      POSTGRES_PASSWORD: password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  ollama:
+    image: ollama/ollama
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  pgdata:
+  ollama_data:

@@ -1,0 +1,172 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(uuid())
+  email     String     @unique
+  name      String
+  role      UserRole   @default(USER)
+  createdAt DateTime   @default(now())
+  projects  Project[]
+  auditLogs AuditLog[]
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model Project {
+  id               String            @id @default(uuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  name             String
+  direction        String?
+  description      String?
+  status           ProjectStatus     @default(DRAFT)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  answers          Answer[]
+  decision         Decision?
+  regulatoryAlerts RegulatoryAlert[]
+  vendorAnalyses   VendorAnalysis[]
+  reports          Report[]
+  auditLogs        AuditLog[]
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  DONE
+}
+
+model Answer {
+  id               String   @id @default(uuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  questionKey      String // Q1..Q10, QR1..QR3
+  value            Json // réponse brute (string, array, etc.)
+  llmReformulation String? // uniquement pour Q1
+  answeredAt       DateTime @default(now())
+
+  @@unique([projectId, questionKey])
+}
+
+model Decision {
+  id                 String          @id @default(uuid())
+  projectId          String          @unique
+  project            Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  verdict            Verdict
+  techRecommendation TechType?
+  justification      String
+  score              Json // { axe1: 2, axe2: 3, axe3: 1, axe4: 2, axe5: 2, axe6: 2, total: 12 }
+  rulesTriggered     Json // ["R1", "R6"]
+  regulatoryLevel    RegulatoryLevel
+  generatedAt        DateTime        @default(now())
+}
+
+enum Verdict {
+  GO
+  POC
+  STUDY
+  AUTOMATION
+  NOGO
+}
+
+enum TechType {
+  RPA
+  ML
+  LLM
+  RAG
+  OCR
+  AGENT
+}
+
+enum RegulatoryLevel {
+  HIGH
+  MEDIUM
+  LOW
+  MINIMAL
+}
+
+model RegulatoryAlert {
+  id         String              @id @default(uuid())
+  projectId  String
+  project    Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  level      AlertLevel
+  framework  RegulatoryFramework
+  article    String? // ex: "Art. 22"
+  obligation String // description de l'obligation
+  action     String // action concrète à mener
+  deadline   String? // ex: "Avant lancement", "2 déc. 2027"
+}
+
+enum AlertLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum RegulatoryFramework {
+  RGPD
+  AI_ACT
+  ISO_42001
+  CNIL
+  CSE
+  OTHER
+}
+
+model VendorAnalysis {
+  id               String                @id @default(uuid())
+  projectId        String
+  project          Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentName     String?
+  documentContent  String? // texte extrait du PDF
+  fitScore         Int? // 1-5
+  fitJustification String?
+  redFlags         Json // [{ severity, claim, concern }]
+  questions        Json // [{ question, why }]
+  recommendations  String?
+  recommendation   VendorRecommendation?
+  createdAt        DateTime              @default(now())
+}
+
+enum VendorRecommendation {
+  PROCEED
+  CAUTION
+  AVOID
+}
+
+model Report {
+  id          String       @id @default(uuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  format      ReportFormat
+  content     String // markdown
+  filePath    String? // chemin PDF généré
+  generatedAt DateTime     @default(now())
+}
+
+enum ReportFormat {
+  PDF
+  MARKDOWN
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String // ex: "ANSWER_SAVED", "REPORT_GENERATED", "VENDOR_UPLOADED"
+  detail    Json?
+  createdAt DateTime @default(now())
+}

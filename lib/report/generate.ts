@@ -1,0 +1,94 @@
+import { db } from "@/lib/db"
+import { getLLMProvider } from "@/lib/llm"
+import { buildReportPrompt } from "@/lib/prompts/report"
+
+const dateFmt = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+})
+
+/**
+ * Génère le rapport markdown (Prompt 3) à partir des données du projet
+ * et le stocke (remplace le précédent). Renvoie le markdown.
+ */
+export async function generateReport(projectId: string): Promise<string | null> {
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    include: {
+      user: true,
+      decision: true,
+      answers: true,
+      regulatoryAlerts: true,
+      vendorAnalyses: { orderBy: { createdAt: "desc" }, take: 1 },
+    },
+  })
+  if (!project || !project.decision) return null
+
+  const answersMap: Record<string, unknown> = {}
+  for (const a of project.answers) answersMap[a.questionKey] = a.value
+
+  const vendor = project.vendorAnalyses[0]
+
+  const prompt = buildReportPrompt({
+    projectName: project.name,
+    userName: project.user?.name ?? "—",
+    date: dateFmt.format(new Date()),
+    answersJson: JSON.stringify(answersMap),
+    decisionJson: JSON.stringify({
+      verdict: project.decision.verdict,
+      techRecommendation: project.decision.techRecommendation,
+      justification: project.decision.justification,
+      score: project.decision.score,
+      regulatoryLevel: project.decision.regulatoryLevel,
+    }),
+    alertsJson: JSON.stringify(
+      project.regulatoryAlerts.map((a) => ({
+        level: a.level,
+        framework: a.framework,
+        article: a.article,
+        obligation: a.obligation,
+        action: a.action,
+        deadline: a.deadline,
+      })),
+    ),
+    vendorJson: vendor
+      ? JSON.stringify({
+          fitScore: vendor.fitScore,
+          questions: vendor.questions,
+          recommendation: vendor.recommendation,
+        })
+      : undefined,
+  })
+
+  let content = ""
+  try {
+    content = await getLLMProvider().complete(prompt)
+  } catch (e) {
+    console.error("[generateReport] LLM error:", e)
+    return null
+  }
+  if (!content.trim()) return null
+
+  await db.report.deleteMany({ where: { projectId, format: "MARKDOWN" } })
+  await db.report.create({
+    data: { projectId, format: "MARKDOWN", content },
+  })
+  await db.auditLog.create({
+    data: { projectId, action: "REPORT_GENERATED" },
+  })
+
+  return content
+}
+
+/** Renvoie le markdown du rapport (en le générant si nécessaire). */
+export async function getOrCreateReport(
+  projectId: string,
+): Promise<string | null> {
+  const existing = await db.report.findFirst({
+    where: { projectId, format: "MARKDOWN" },
+    orderBy: { generatedAt: "desc" },
+  })
+  if (existing) return existing.content
+  return generateReport(projectId)
+}

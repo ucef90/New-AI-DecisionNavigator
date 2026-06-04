@@ -1,0 +1,39 @@
+# Déploiement on-premise — version simple (SQLite + Ollama).
+# Démarre immédiatement, sans base externe. Données persistées dans un volume.
+#
+#   docker compose up --build
+#
+# Pour activer l'IA locale : pull d'un modèle puis LLM_PROVIDER=ollama
+#   docker compose exec ollama ollama pull mistral
+#
+# Pour PostgreSQL (cible SPEC), voir docker-compose.postgres.yml.
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_PROVIDER=sqlite
+      - DATABASE_URL=file:/app/data/prod.db
+      - LLM_PROVIDER=stub # ou "ollama" une fois un modèle pull
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=mistral
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me-in-production}
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXT_PUBLIC_APP_NAME=AI Pré-Cadrage
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  app_data:
+  ollama_data:
