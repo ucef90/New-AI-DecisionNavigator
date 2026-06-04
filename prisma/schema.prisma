@@ -39,7 +39,19 @@ model Project {
   regulatoryAlerts RegulatoryAlert[]
   vendorAnalyses   VendorAnalysis[]
   reports          Report[]
+  attachments      Attachment[]
   auditLogs        AuditLog[]
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  mimeType  String?
+  size      Int
+  text      String? // texte extrait (référence / analyse)
+  createdAt DateTime @default(now())
 }
 
 enum ProjectStatus {
@@ -130,9 +142,14 @@ model VendorAnalysis {
   project          Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
   documentName     String?
   documentContent  String? // texte extrait du PDF
+  solutionSummary  String? // ce que fait la solution + architecture
+  relevance        String? // pertinence vs besoin
+  maturityScore    Int? // fiabilité / maturité sur 20
+  maturityJustification String?
   fitScore         Int? // 1-5
   fitJustification String?
   redFlags         Json // [{ severity, claim, concern }]
+  hiddenDependencies Json? // ["..."]
   questions        Json // [{ question, why }]
   recommendations  String?
   recommendation   VendorRecommendation?

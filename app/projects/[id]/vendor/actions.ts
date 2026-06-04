@@ -93,7 +93,7 @@ export async function analyzeVendor(
   try {
     const raw = await getLLMProvider().complete(prompt, {
       json: true,
-      timeoutMs: 150_000,
+      timeoutMs: 60_000,
     })
     result = parseVendor(raw)
   } catch (e) {
@@ -115,9 +115,15 @@ export async function analyzeVendor(
       projectId,
       documentName,
       documentContent: content.slice(0, 5000),
+      solutionSummary: result.solutionSummary || null,
+      relevance: result.relevance || null,
+      maturityScore: result.maturityScore,
+      maturityJustification: result.maturityJustification || null,
       fitScore: result.fitScore,
       fitJustification: result.fitJustification,
       redFlags: result.redFlags as unknown as Prisma.InputJsonValue,
+      hiddenDependencies:
+        result.hiddenDependencies as unknown as Prisma.InputJsonValue,
       questions: result.questionsToAsk as unknown as Prisma.InputJsonValue,
       recommendations: result.recommendationReason,
       recommendation: result.recommendation,

@@ -7,6 +7,12 @@ import { Wizard } from "@/components/wizard/wizard"
 
 export const metadata = { title: "Parcours de cadrage" }
 
+const dateFmt = new Intl.DateTimeFormat("fr-FR", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+})
+
 export default async function WizardPage({
   params,
 }: {
@@ -14,7 +20,10 @@ export default async function WizardPage({
 }) {
   const project = await db.project.findUnique({
     where: { id: params.id },
-    include: { answers: true },
+    include: {
+      answers: true,
+      attachments: { orderBy: { createdAt: "desc" } },
+    },
   })
 
   if (!project) notFound()
@@ -24,12 +33,20 @@ export default async function WizardPage({
     initialAnswers[a.questionKey] = a.value as string | string[]
   }
 
+  const initialDocuments = project.attachments.map((a) => ({
+    id: a.id,
+    name: a.name,
+    size: a.size,
+    date: dateFmt.format(a.createdAt),
+  }))
+
   return (
     <PageContainer>
       <Wizard
         projectId={project.id}
         projectName={project.name}
         initialAnswers={initialAnswers}
+        initialDocuments={initialDocuments}
       />
     </PageContainer>
   )

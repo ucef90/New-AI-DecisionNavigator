@@ -150,6 +150,42 @@ export const MAIN_QUESTIONS: Question[] = [
       { value: "not_asked", label: "La question n'a pas encore été posée" },
     ],
   },
+  {
+    key: "Q11",
+    block: "Cadrage et faisabilité",
+    type: "single",
+    label: "Le besoin s'appuie-t-il sur un outil ou un système déjà en place ?",
+    help: "Ex. : Iodas, Multigest, Outlook, Power Automate…",
+    options: [
+      { value: "extend", label: "Oui — on enrichit un outil existant" },
+      { value: "partial", label: "En partie — interconnexion avec l'existant" },
+      { value: "new", label: "Non — c'est une nouvelle solution" },
+      { value: "unknown", label: "Je ne sais pas" },
+    ],
+  },
+  {
+    key: "Q12",
+    block: "Cadrage et faisabilité",
+    type: "single",
+    label:
+      "Les processus métier concernés sont-ils formalisés (documentés, stabilisés) ?",
+    options: [
+      { value: "formalized", label: "Oui, bien formalisés" },
+      { value: "partial", label: "Partiellement formalisés" },
+      { value: "not", label: "Non, peu ou pas formalisés" },
+    ],
+  },
+  {
+    key: "Q13",
+    block: "Cadrage et faisabilité",
+    type: "single",
+    label: "Quel est le périmètre organisationnel du projet ?",
+    options: [
+      { value: "single", label: "Un seul service" },
+      { value: "multi_service", label: "Plusieurs services d'une même direction" },
+      { value: "multi_direction", label: "Plusieurs directions" },
+    ],
+  },
 ]
 
 const REG_HIGH_DATA = ["health", "social", "legal", "hr"]

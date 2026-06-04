@@ -29,10 +29,18 @@ const FLAG_DOT: Record<string, string> = {
   low: "bg-blue-500",
 }
 
+function maturityColor(score: number): string {
+  if (score >= 14) return "bg-emerald-500"
+  if (score >= 9) return "bg-amber-500"
+  return "bg-rose-500"
+}
+
 export function VendorResult({ analysis }: { analysis: VendorAnalysis }) {
   const redFlags = (analysis.redFlags as unknown as VendorRedFlag[]) ?? []
   const questions = (analysis.questions as unknown as VendorQuestion[]) ?? []
+  const hidden = (analysis.hiddenDependencies as unknown as string[]) ?? []
   const reco = RECO_STYLES[analysis.recommendation ?? "CAUTION"]
+  const maturity = analysis.maturityScore ?? 0
 
   return (
     <div className="space-y-6">
@@ -55,7 +63,49 @@ export function VendorResult({ analysis }: { analysis: VendorAnalysis }) {
             ) : null}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 text-sm">
+        <CardContent className="space-y-5 text-sm">
+          {/* Solution & architecture */}
+          {analysis.solutionSummary ? (
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                Solution proposée &amp; architecture
+              </p>
+              <p className="leading-relaxed">{analysis.solutionSummary}</p>
+            </div>
+          ) : null}
+
+          {/* Pertinence */}
+          {analysis.relevance ? (
+            <div>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                Pertinence au regard du besoin
+              </p>
+              <p className="leading-relaxed">{analysis.relevance}</p>
+            </div>
+          ) : null}
+
+          {/* Note de maturité /20 */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Fiabilité / maturité
+              </span>
+              <span className="font-semibold tabular-nums">{maturity}/20</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn("h-full rounded-full", maturityColor(maturity))}
+                style={{ width: `${(maturity / 20) * 100}%` }}
+              />
+            </div>
+            {analysis.maturityJustification ? (
+              <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+                {analysis.maturityJustification}
+              </p>
+            ) : null}
+          </div>
+
+          {/* Adéquation /5 */}
           <div className="flex items-center gap-3">
             <span className="text-muted-foreground">Adéquation au besoin</span>
             <div className="flex gap-1" aria-label={`${analysis.fitScore}/5`}>
@@ -73,13 +123,10 @@ export function VendorResult({ analysis }: { analysis: VendorAnalysis }) {
               {analysis.fitScore}/5
             </span>
           </div>
-          {analysis.fitJustification ? (
-            <p className="leading-relaxed text-muted-foreground">
-              {analysis.fitJustification}
-            </p>
-          ) : null}
           {analysis.recommendations ? (
-            <p className="leading-relaxed">{analysis.recommendations}</p>
+            <p className="leading-relaxed text-muted-foreground">
+              {analysis.recommendations}
+            </p>
           ) : null}
         </CardContent>
       </Card>
@@ -104,9 +151,7 @@ export function VendorResult({ analysis }: { analysis: VendorAnalysis }) {
                     />
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium">{f.claim}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {f.concern}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{f.concern}</p>
                     </div>
                   </div>
                 </li>
@@ -116,7 +161,23 @@ export function VendorResult({ analysis }: { analysis: VendorAnalysis }) {
         </Card>
       ) : null}
 
-      {/* Questions à poser */}
+      {/* Dépendances / points à clarifier */}
+      {hidden.length > 0 ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Dépendances à clarifier</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              {hidden.map((h, i) => (
+                <li key={i}>{h}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Questions à poser (à la fin) */}
       {questions.length > 0 ? (
         <Card>
           <CardHeader className="pb-2">

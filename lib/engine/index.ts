@@ -226,7 +226,14 @@ export function computeScore(
   const q9Score = { yes_api: 3, to_check: 2, unknown: 2, no: 1 }[q9 ?? ""] ?? 2
   const q10Score =
     { ready: 3, partial: 2, resistant: 1, not_asked: 1 }[q10 ?? ""] ?? 2
-  const axe6 = clamp((q9Score + q10Score) / 2)
+  // Ajustements cadrage (Q11 outil existant, Q13 périmètre) — neutres si absents.
+  const q11 = single(a, "Q11")
+  const q13 = single(a, "Q13")
+  let axe6Raw = (q9Score + q10Score) / 2
+  if (q11 === "extend") axe6Raw += 0.4
+  else if (q11 === "new") axe6Raw -= 0.2
+  if (q13 === "multi_direction") axe6Raw -= 0.4
+  const axe6 = clamp(axe6Raw)
 
   const total = axe1 + axe2 + axe3 + axe4 + axe5 + axe6
   return { axe1, axe2, axe3, axe4, axe5, axe6, total }
@@ -324,6 +331,55 @@ export function computeTechAffinities(
   return (["RPA", "ML", "LLM", "RAG", "OCR", "AGENT"] as TechType[]).map(
     (tech) => ({ tech, value: clamp100(s[tech]) }),
   )
+}
+
+// Explique quels signaux des réponses pilotent les affinités techno.
+export function techAffinityReasons(a: AnswerMap): string[] {
+  const q4 = single(a, "Q4")
+  const q5 = single(a, "Q5")
+  const q6 = single(a, "Q6")
+  const q8 = single(a, "Q8")
+  const q1 = text(a, "Q1").toLowerCase()
+  const docs = DOC_KEYWORDS.some((k) => q1.includes(k))
+  const kb = KB_KEYWORDS.some((k) => q1.includes(k))
+  const variable = q4 === "variable" || q4 === "complex"
+
+  const reasons: string[] = []
+  if (q4 === "stable" && q5 === "high_simple")
+    reasons.push(
+      "Processus stable et répétitif sur des cas simples → forte affinité RPA (automatisation classique, sans IA).",
+    )
+  if (variable)
+    reasons.push(
+      "Traitement variable ou complexe → l'IA devient pertinente (ML / LLM).",
+    )
+  if (q6 === "yes_structured")
+    reasons.push(
+      "Données existantes et structurées → affinité ML (apprentissage sur historique).",
+    )
+  if (variable && q6 !== "yes_structured")
+    reasons.push(
+      "Données dispersées ou non structurées → orientation LLM (traitement du langage).",
+    )
+  if (docs)
+    reasons.push(
+      "Mots-clés documentaires détectés dans la description (formulaire, document, courrier, dossier) → affinité OCR.",
+    )
+  if (kb)
+    reasons.push(
+      "Base de connaissance interne mentionnée → affinité RAG (réponses sourcées sur vos documents).",
+    )
+  if (q8 === "auto_no_human")
+    reasons.push(
+      "Décision automatisée sans validation humaine → composante AGENT (système autonome, à encadrer).",
+    )
+  if (q5 === "high_simple" || q5 === "high_complex")
+    reasons.push("Volume de cas élevé → renforce l'intérêt de l'automatisation.")
+  if (reasons.length === 0)
+    reasons.push(
+      "Le besoin doit être précisé : aucun signal technologique dominant ne se dégage encore.",
+    )
+  return reasons
 }
 
 // ── règles dures R1-R6 ────────────────────────────────────────
@@ -577,10 +633,17 @@ export function runEngine(a: AnswerMap): EngineResult {
     tech: baseTech,
   })
 
+  // Note de maturité (Q12) — additive, sans effet si absente.
+  let justification = buildJustification(verdict, score, messages)
+  if (single(a, "Q12") === "not") {
+    justification +=
+      " Les processus étant peu formalisés, un cadrage préalable est recommandé avant tout développement."
+  }
+
   return {
     verdict,
     techRecommendation: tech,
-    justification: buildJustification(verdict, score, messages),
+    justification,
     score,
     rulesTriggered: triggered,
     regulatoryLevel,

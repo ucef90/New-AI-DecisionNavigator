@@ -15,6 +15,8 @@ import { VerdictBadge, RegulatoryLevelBadge } from "@/components/decision/badges
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { ProjectDocuments } from "@/components/projects/project-documents"
+import { DeleteProjectButton } from "@/components/projects/delete-project-button"
 
 export const metadata = { title: "Projet" }
 
@@ -31,10 +33,26 @@ export default async function ProjectPage({
 }) {
   const project = await db.project.findUnique({
     where: { id: params.id },
-    include: { decision: true, _count: { select: { answers: true } } },
+    include: {
+      decision: true,
+      _count: { select: { answers: true } },
+      attachments: { orderBy: { createdAt: "desc" } },
+    },
   })
 
   if (!project) notFound()
+
+  const dateFmt = new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })
+  const documents = project.attachments.map((a) => ({
+    id: a.id,
+    name: a.name,
+    size: a.size,
+    date: dateFmt.format(a.createdAt),
+  }))
 
   const { decision } = project
 
@@ -48,7 +66,13 @@ export default async function ProjectPage({
             : `${project._count.answers} réponse(s)`
         }
         actions={
-          <Badge variant="secondary">{STATUS_LABELS[project.status]}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">{STATUS_LABELS[project.status]}</Badge>
+            <DeleteProjectButton
+              projectId={project.id}
+              projectName={project.name}
+            />
+          </div>
         }
       />
 
@@ -94,7 +118,7 @@ export default async function ProjectPage({
           href={`/projects/${project.id}/wizard`}
           icon={ClipboardText}
           title="Parcours"
-          description="Répondre aux 10 questions de cadrage."
+          description="Répondre aux questions de cadrage."
         />
         <NavTile
           href={`/projects/${project.id}/results`}
@@ -109,6 +133,16 @@ export default async function ProjectPage({
           description="Analyser une proposition reçue."
         />
       </div>
+
+      {/* Documents du projet */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Documents du projet</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProjectDocuments projectId={project.id} documents={documents} />
+        </CardContent>
+      </Card>
     </PageContainer>
   )
 }

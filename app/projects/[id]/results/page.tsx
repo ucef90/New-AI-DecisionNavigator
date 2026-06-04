@@ -15,7 +15,11 @@ import {
 } from "@phosphor-icons/react/dist/ssr"
 
 import { db } from "@/lib/db"
-import { computeTechAffinities, regulatoryFactors } from "@/lib/engine"
+import {
+  computeTechAffinities,
+  regulatoryFactors,
+  techAffinityReasons,
+} from "@/lib/engine"
 import type { AnswerMap } from "@/lib/questions"
 import {
   TECH_LABELS,
@@ -31,6 +35,7 @@ import {
 } from "@/components/decision/badges"
 import { AlertItem } from "@/components/decision/alert-item"
 import { TechRadar } from "@/components/decision/tech-radar"
+import { TechRadarDetail } from "@/components/decision/tech-radar-detail"
 import { SolutionBlueprint } from "@/components/decision/solution-blueprint"
 import { RiskExplainer } from "@/components/decision/risk-explainer"
 import { Button } from "@/components/ui/button"
@@ -119,6 +124,7 @@ export default async function ResultsPage({
     answersMap[a.questionKey] = a.value as string | string[]
   }
   const techAffinities = computeTechAffinities(answersMap)
+  const techReasons = techAffinityReasons(answersMap)
   const riskFactors = regulatoryFactors(answersMap)
 
   const order = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const
@@ -273,6 +279,11 @@ export default async function ResultsPage({
               Affinité du projet avec chaque technologie. Plus l&apos;aire
               s&apos;étend vers un axe, plus cette approche est pertinente.
             </p>
+            <TechRadarDetail
+              affinities={techAffinities}
+              recommended={decision.techRecommendation}
+              reasons={techReasons}
+            />
           </CardContent>
         </Card>
       </Reveal>

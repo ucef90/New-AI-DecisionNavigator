@@ -8,6 +8,7 @@ import {
   CheckCircle,
   Sparkle,
   CircleNotch,
+  Paperclip,
 } from "@phosphor-icons/react/dist/ssr"
 
 import {
@@ -17,8 +18,16 @@ import {
 } from "@/lib/questions"
 import type { ReformulationResult } from "@/lib/prompts/reformulate"
 import { cn } from "@/lib/utils"
-import { saveAnswer, reformulateQ1, completeWizard } from "@/app/projects/[id]/wizard/actions"
+import {
+  saveAnswer,
+  reformulateQ1,
+  completeWizard,
+} from "@/app/projects/[id]/wizard/actions"
 import { QuestionInput } from "@/components/wizard/question-input"
+import {
+  ProjectDocuments,
+  type DocItem,
+} from "@/components/projects/project-documents"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
@@ -32,10 +41,12 @@ export function Wizard({
   projectId,
   projectName,
   initialAnswers,
+  initialDocuments,
 }: {
   projectId: string
   projectName: string
   initialAnswers: AnswerMap
+  initialDocuments: DocItem[]
 }) {
   const reduce = useReducedMotion()
   const [answers, setAnswers] = useState<AnswerMap>(initialAnswers)
@@ -50,18 +61,20 @@ export function Wizard({
 
   const sequence = useMemo(() => getQuestionSequence(answers), [answers])
 
+  // L'étape finale (index = sequence.length) est l'écran "Documents (optionnel)".
   const [step, setStep] = useState(() => {
     const seq = getQuestionSequence(initialAnswers)
-    const firstUnanswered = seq.findIndex((q) => !isAnswered(initialAnswers[q.key]))
-    return firstUnanswered === -1 ? 0 : firstUnanswered
+    const firstUnanswered = seq.findIndex(
+      (q) => !isAnswered(initialAnswers[q.key]),
+    )
+    return firstUnanswered === -1 ? seq.length : firstUnanswered
   })
 
+  const onDocs = step >= sequence.length
   const current = sequence[Math.min(step, sequence.length - 1)]
   const value = answers[current.key]
-  const answered = isAnswered(value)
-  const isRegulatory = current.block === "Réglementation"
-  const isLast = step === sequence.length - 1
-  const regCount = sequence.length - TOTAL_MAIN
+  const answered = onDocs ? true : isAnswered(value)
+  const isRegulatory = !onDocs && current.block === "Réglementation"
 
   const setValue = (v: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [current.key]: v }))
@@ -70,7 +83,6 @@ export function Wizard({
         saveAnswer(projectId, current.key, v)
       })
     }
-    // toute modif de Q1 invalide la reformulation précédente
     if (current.key === "Q1") {
       setReformulation(null)
       setAnalyzedText(null)
@@ -94,8 +106,16 @@ export function Wizard({
   }
 
   const handleNext = () => {
-    // Q1 : exiger une analyse avant d'avancer
-    if (current.key === "Q1" && analyzedText !== ((value as string)?.trim() ?? "")) {
+    if (onDocs) {
+      startNav(async () => {
+        await completeWizard(projectId)
+      })
+      return
+    }
+    if (
+      current.key === "Q1" &&
+      analyzedText !== ((value as string)?.trim() ?? "")
+    ) {
       handleAnalyzeQ1()
       return
     }
@@ -104,12 +124,7 @@ export function Wizard({
         saveAnswer(projectId, current.key, (value as string) ?? "")
       })
     }
-    if (isLast) {
-      startNav(async () => {
-        await completeWizard(projectId)
-      })
-      return
-    }
+    // Dernière question → écran Documents ; sinon question suivante.
     goTo(step + 1, 1)
   }
 
@@ -118,13 +133,16 @@ export function Wizard({
     goTo(step - 1, -1)
   }
 
-  // libellé de progression
-  const progressLabel = isRegulatory
-    ? `Réglementation · ${step - TOTAL_MAIN + 1} sur ${regCount}`
-    : `Question ${step + 1} sur ${TOTAL_MAIN}`
-  const percent = ((step + 1) / sequence.length) * 100
+  const totalSteps = sequence.length + 1
+  const progressLabel = onDocs
+    ? "Documents (optionnel)"
+    : isRegulatory
+      ? `Réglementation · ${step - TOTAL_MAIN + 1} sur ${sequence.length - TOTAL_MAIN}`
+      : `Question ${step + 1} sur ${TOTAL_MAIN}`
+  const percent = ((step + 1) / totalSteps) * 100
 
   const q1NeedsAnalysis =
+    !onDocs &&
     current.key === "Q1" &&
     analyzedText !== ((value as string)?.trim() ?? "") &&
     answered
@@ -150,34 +168,57 @@ export function Wizard({
 
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
-          key={current.key}
+          key={onDocs ? "__docs" : current.key}
           initial={{ opacity: 0, x: direction * xOffset }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -direction * xOffset }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         >
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">
-            {current.block}
-          </p>
-          <h1 className="mb-2 text-xl font-semibold tracking-tight text-balance">
-            {current.label}
-          </h1>
-          {current.help ? (
-            <p className="mb-5 text-sm text-muted-foreground">{current.help}</p>
+          {onDocs ? (
+            <div>
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
+                <Paperclip className="size-3.5" aria-hidden />
+                Documents (optionnel)
+              </p>
+              <h1 className="mb-2 text-xl font-semibold tracking-tight text-balance">
+                Ajoutez des documents au projet
+              </h1>
+              <p className="mb-5 text-sm text-muted-foreground">
+                Cadrage, note PPNUM, proposition reçue… Tout document utile pour
+                enrichir le dossier (PDF, txt). Cette étape est facultative.
+              </p>
+              <ProjectDocuments
+                projectId={projectId}
+                documents={initialDocuments}
+              />
+            </div>
           ) : (
-            <div className="mb-5" />
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">
+                {current.block}
+              </p>
+              <h1 className="mb-2 text-xl font-semibold tracking-tight text-balance">
+                {current.label}
+              </h1>
+              {current.help ? (
+                <p className="mb-5 text-sm text-muted-foreground">
+                  {current.help}
+                </p>
+              ) : (
+                <div className="mb-5" />
+              )}
+
+              <QuestionInput
+                question={current}
+                value={value}
+                onChange={setValue}
+              />
+
+              {current.key === "Q1" && reformulation ? (
+                <ReformulationPanel result={reformulation} />
+              ) : null}
+            </div>
           )}
-
-          <QuestionInput
-            question={current}
-            value={value}
-            onChange={setValue}
-          />
-
-          {/* Panneau de reformulation Q1 */}
-          {current.key === "Q1" && reformulation ? (
-            <ReformulationPanel result={reformulation} />
-          ) : null}
         </motion.div>
       </AnimatePresence>
 
@@ -195,7 +236,7 @@ export function Wizard({
 
         <Button
           onClick={handleNext}
-          disabled={!answered || reformPending || navPending}
+          disabled={(!onDocs && !answered) || reformPending || navPending}
         >
           {reformPending ? (
             <>
@@ -207,7 +248,7 @@ export function Wizard({
               <Sparkle className="size-4" aria-hidden />
               Analyser ma réponse
             </>
-          ) : isLast ? (
+          ) : onDocs ? (
             navPending ? (
               <>
                 <CircleNotch className="size-4 animate-spin" aria-hidden />
