@@ -3,6 +3,8 @@ import type { Verdict } from "@prisma/client"
 
 import { db } from "@/lib/db"
 import { computeTechAffinities } from "@/lib/engine"
+import { buildGlobalAnalysis } from "@/lib/analysis/global"
+import { parseContext } from "@/lib/prompts/context"
 import type { AnswerMap } from "@/lib/questions"
 import {
   VERDICT_STYLES,
@@ -128,11 +130,29 @@ export async function GET(
       }
     : null
 
+  // Analyse globale détaillée (mêmes ateliers que la page /analysis)
+  const analysis = buildGlobalAnalysis(answersMap, d, project.regulatoryAlerts)
+
+  let context: ReportData["context"] = null
+  if (project.contextBrief) {
+    const c = parseContext(project.contextBrief)
+    context = {
+      summary: c.summary,
+      businessNeed: c.businessNeed,
+      processes: c.processes,
+      dataPoints: c.dataPoints,
+      stakes: c.stakes,
+    }
+  }
+
   const data: ReportData = {
     projectName: project.name,
     direction: project.direction,
     userName: project.user?.name ?? "—",
     date: dateFmt.format(d.generatedAt),
+    description: project.description,
+    context,
+    analysis,
     verdict: d.verdict,
     verdictLabel: VERDICT_STYLES[d.verdict].label,
     verdictMeaning: VERDICT_MEANING[d.verdict],

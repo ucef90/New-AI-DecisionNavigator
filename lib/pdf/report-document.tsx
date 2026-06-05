@@ -10,12 +10,23 @@ import {
 } from "@react-pdf/renderer"
 import type { RegulatoryLevel, Verdict } from "@prisma/client"
 
+import type { GlobalAnalysis } from "@/lib/analysis/global"
+
 // ── Données structurées du rapport ───────────────────────────
 export interface ReportData {
   projectName: string
   direction?: string | null
   userName: string
   date: string
+  description?: string | null
+  context: {
+    summary: string
+    businessNeed: string
+    processes: string[]
+    dataPoints: string[]
+    stakes: string[]
+  } | null
+  analysis: GlobalAnalysis
   verdict: Verdict
   verdictLabel: string
   verdictMeaning: string
@@ -67,6 +78,32 @@ const PRIMARY = "#4F46E5"
 const INK = "#18181b"
 const MUTED = "#71717a"
 const BORDER = "#e4e4e7"
+const EMERALD = "#059669"
+const AMBER = "#d97706"
+const ROSE = "#e11d48"
+
+const QUAL_HEX: Record<string, string> = {
+  Automatisation: "#7c3aed",
+  IA: "#2563eb",
+  "IA avancée": "#e11d48",
+}
+const GOV_HEX: Record<string, string> = {
+  ok: EMERALD,
+  warn: AMBER,
+  todo: MUTED,
+}
+const GOV_MARK: Record<string, string> = {
+  ok: "OK",
+  warn: "!",
+  todo: "•",
+}
+
+// Couleur d'une jauge /100 (vert si bon, ambre, rouge). invert = un score bas est bon.
+function gaugeHex(v: number, invert = false): string {
+  const good = invert ? v < 40 : v >= 66
+  const mid = v >= 40 && v < 66
+  return good ? EMERALD : mid ? AMBER : ROSE
+}
 
 const s = StyleSheet.create({
   page: {
@@ -175,8 +212,78 @@ function Radar({ data }: { data: { label: string; value: number }[] }) {
   )
 }
 
+// Liste de libellés en ligne (« Gains : a · b · c »).
+function Inline({ label, items }: { label: string; items: string[] }) {
+  if (!items || items.length === 0) return null
+  return (
+    <Text style={s.para}>
+      <Text style={{ fontFamily: "Helvetica-Bold" }}>{label} : </Text>
+      <Text style={{ color: MUTED }}>{items.join("  ·  ")}</Text>
+    </Text>
+  )
+}
+
+// Barre de score value/max avec couleur.
+function Meter({
+  label,
+  value,
+  max,
+  color,
+}: {
+  label: string
+  value: number
+  max: number
+  color: string
+}) {
+  return (
+    <View style={{ marginBottom: 5 }}>
+      <View style={[s.row, { justifyContent: "space-between" }]}>
+        <Text style={{ color: MUTED, fontSize: 8.5 }}>{label}</Text>
+        <Text style={{ fontSize: 8.5 }}>
+          {value}/{max}
+        </Text>
+      </View>
+      <View style={s.barTrack}>
+        <View
+          style={{
+            height: 6,
+            borderRadius: 3,
+            backgroundColor: color,
+            width: `${Math.max(0, Math.min(100, (value / max) * 100))}%`,
+          }}
+        />
+      </View>
+    </View>
+  )
+}
+
+// Bloc de score encadré (Maturité / Risque / Faisabilité).
+function ScoreBox({
+  label,
+  value,
+  sub,
+  color,
+}: {
+  label: string
+  value: number
+  sub: string
+  color: string
+}) {
+  return (
+    <View style={[s.card, { flexGrow: 1, width: "31%" }]}>
+      <Text style={{ fontSize: 8, color: MUTED }}>{label}</Text>
+      <Text style={{ fontSize: 16, fontFamily: "Helvetica-Bold", color }}>
+        {value}
+        <Text style={{ fontSize: 9, color: MUTED }}>/100</Text>
+      </Text>
+      <Text style={{ fontSize: 7.5, color: MUTED }}>{sub}</Text>
+    </View>
+  )
+}
+
 export function ReportDocument({ data }: { data: ReportData }) {
   const vHex = VERDICT_HEX[data.verdict]
+  const an = data.analysis
   return (
     <Document>
       <Page size="A4" style={s.page}>
@@ -203,10 +310,75 @@ export function ReportDocument({ data }: { data: ReportData }) {
           </View>
         </View>
 
+        {/* Contexte du projet */}
+        <View style={s.section}>
+          <Text style={s.h2}>Contexte du projet</Text>
+          {data.description ? (
+            <Text style={s.para}>{data.description}</Text>
+          ) : null}
+          {data.context?.summary ? (
+            <Text style={[s.para, { marginTop: data.description ? 4 : 0 }]}>
+              {data.context.summary}
+            </Text>
+          ) : null}
+          {data.context ? (
+            <View style={{ marginTop: 4 }}>
+              <Inline label="Données identifiées" items={data.context.dataPoints} />
+              <Inline label="Enjeux" items={data.context.stakes} />
+            </View>
+          ) : null}
+          {!data.description && !data.context ? (
+            <Text style={{ color: MUTED }}>
+              Aucun document de contexte n&apos;a été fourni : l&apos;analyse se
+              fonde sur les réponses au questionnaire.
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Besoin reformulé & diagnostic métier — Atelier 1 */}
+        <View style={s.section}>
+          <Text style={s.h2}>Besoin reformulé & diagnostic métier</Text>
+          <Text style={s.para}>
+            <Text style={{ fontFamily: "Helvetica-Bold" }}>Besoin : </Text>
+            {an.diagnostic.need}
+          </Text>
+          {an.diagnostic.processes ? (
+            <Text style={s.para}>
+              <Text style={{ fontFamily: "Helvetica-Bold" }}>
+                Processus actuel :{" "}
+              </Text>
+              <Text style={{ color: MUTED }}>{an.diagnostic.processes}</Text>
+            </Text>
+          ) : null}
+          <Inline label="Gains visés" items={an.diagnostic.gains} />
+          <Inline label="Acteurs concernés" items={an.diagnostic.actors} />
+          <Inline label="Enjeux" items={an.diagnostic.stakes} />
+        </View>
+
         {/* Justification */}
         <View style={s.section}>
           <Text style={s.h2}>Pourquoi cette décision</Text>
           <Text>{data.justification}</Text>
+        </View>
+
+        {/* Qualification IA vs Automatisation — Atelier 2 */}
+        <View style={s.section} wrap={false}>
+          <Text style={s.h2}>Qualification : IA ou automatisation ?</Text>
+          <Text style={s.para}>{an.qualification.summary}</Text>
+          {an.qualification.items.map((it, i) => (
+            <View
+              key={i}
+              style={[
+                s.row,
+                { justifyContent: "space-between", alignItems: "center", marginTop: 3 },
+              ]}
+            >
+              <Text style={{ fontSize: 8.5 }}>{it.capability}</Text>
+              <Text style={[s.badge, { backgroundColor: QUAL_HEX[it.type] ?? PRIMARY }]}>
+                {it.type}
+              </Text>
+            </View>
+          ))}
         </View>
 
         {/* Évaluation + Radar côte à côte */}
@@ -252,6 +424,63 @@ export function ReportDocument({ data }: { data: ReportData }) {
             ) : null}
           </View>
         ) : null}
+
+        {/* Cartographie des technologies — Atelier 5 */}
+        <View style={s.section} wrap={false}>
+          <Text style={s.h2}>Cartographie des technologies</Text>
+          {an.techMap.map((t, i) => (
+            <View key={i} style={[s.row, { marginBottom: 2 }]}>
+              <Text
+                style={{
+                  width: 14,
+                  fontFamily: "Helvetica-Bold",
+                  color: t.needed ? EMERALD : "#c4c4cc",
+                }}
+              >
+                {t.needed ? "+" : "–"}
+              </Text>
+              <Text style={{ flexGrow: 1, color: t.needed ? INK : MUTED }}>
+                <Text style={{ fontFamily: "Helvetica-Bold" }}>{t.tech}</Text>
+                {" — "}
+                {t.reason}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Maturité, risque & faisabilité — Atelier 4 */}
+        <View style={s.section} wrap={false}>
+          <Text style={s.h2}>Maturité, risque & faisabilité</Text>
+          <View style={[s.row, { gap: 8, marginBottom: 8 }]}>
+            <ScoreBox
+              label="Maturité"
+              value={an.maturity.global}
+              sub="moyenne des 5 dimensions"
+              color={gaugeHex(an.maturity.global)}
+            />
+            <ScoreBox
+              label="Risque"
+              value={an.riskScore.value}
+              sub={an.riskScore.level}
+              color={gaugeHex(an.riskScore.value, true)}
+            />
+            <ScoreBox
+              label="Faisabilité"
+              value={an.feasibilityScore.value}
+              sub={an.feasibilityScore.label}
+              color={gaugeHex(an.feasibilityScore.value)}
+            />
+          </View>
+          {an.maturity.dimensions.map((dim) => (
+            <Meter
+              key={dim.key}
+              label={dim.label}
+              value={dim.score}
+              max={5}
+              color={PRIMARY}
+            />
+          ))}
+        </View>
 
         {/* Réglementation */}
         <View style={s.section}>
@@ -299,12 +528,64 @@ export function ReportDocument({ data }: { data: ReportData }) {
           )}
         </View>
 
+        {/* Gouvernance & conformité — Atelier 6 */}
+        <View style={s.section} wrap={false}>
+          <Text style={s.h2}>Gouvernance & conformité</Text>
+          {an.governance.map((g, i) => (
+            <View key={i} style={[s.row, { marginBottom: 3 }]}>
+              <Text
+                style={[
+                  s.badge,
+                  {
+                    backgroundColor: GOV_HEX[g.status] ?? MUTED,
+                    width: 18,
+                    textAlign: "center",
+                    marginRight: 6,
+                  },
+                ]}
+              >
+                {GOV_MARK[g.status] ?? "•"}
+              </Text>
+              <Text style={{ flexGrow: 1 }}>
+                <Text style={{ fontFamily: "Helvetica-Bold" }}>{g.label}. </Text>
+                <Text style={{ color: MUTED }}>{g.note}</Text>
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Feuille de route — roadmap */}
+        <View style={s.section} wrap={false}>
+          <Text style={s.h2}>Feuille de route</Text>
+          {an.roadmap.map((p, i) => (
+            <View key={i} style={[s.row, { marginBottom: 3 }]}>
+              <Text style={{ width: 64, color: MUTED, fontSize: 8 }}>
+                {p.duration}
+              </Text>
+              <Text style={{ flexGrow: 1 }}>
+                <Text style={{ fontFamily: "Helvetica-Bold" }}>{p.phase} : </Text>
+                <Text style={{ color: MUTED }}>{p.items.join(" · ")}</Text>
+              </Text>
+            </View>
+          ))}
+        </View>
+
         {/* Prochaines étapes */}
         <View style={s.section}>
           <Text style={s.h2}>Prochaines étapes</Text>
           {data.steps.map((step, i) => (
             <Text key={i} style={s.para}>
               {i + 1}. {step}
+            </Text>
+          ))}
+        </View>
+
+        {/* Recommandations */}
+        <View style={s.section} wrap={false}>
+          <Text style={s.h2}>Recommandations</Text>
+          {an.recommendations.map((r, i) => (
+            <Text key={i} style={s.para}>
+              • {r}
             </Text>
           ))}
         </View>
