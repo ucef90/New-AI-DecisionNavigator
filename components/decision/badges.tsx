@@ -5,6 +5,8 @@ import {
   VERDICT_STYLES,
   VERDICT_DESCRIPTIONS,
   REG_LEVEL_STYLES,
+  SCORE_MAX,
+  scoreTrafficStyle,
 } from "@/lib/decision/labels"
 import { CountUp } from "@/components/motion/count-up"
 
@@ -61,18 +63,20 @@ export function DecisionBanner({
   verdict: Verdict
   total: number
 }) {
-  const s = VERDICT_STYLES[verdict]
+  const v = VERDICT_STYLES[verdict]
+  // La couleur de la bannière suit le score (feu tricolore), pas le verdict.
+  const sc = scoreTrafficStyle(total)
   return (
     <div
       className={cn(
         "flex items-center justify-between gap-6 rounded-xl border p-6",
-        s.className,
+        sc.className,
       )}
     >
       <div className="space-y-1.5">
         <p className="text-sm font-medium opacity-70">Décision recommandée</p>
         <p className="text-4xl font-semibold leading-none tracking-tight">
-          {s.label}
+          {v.label}
         </p>
         <p className="max-w-md text-sm opacity-90">
           {VERDICT_DESCRIPTIONS[verdict]}
@@ -81,9 +85,22 @@ export function DecisionBanner({
       <div className="shrink-0 text-right">
         <p className="text-3xl font-semibold leading-none tabular-nums">
           <CountUp value={total} />
-          <span className="text-lg opacity-60">/18</span>
+          <span className="text-lg opacity-60">/{SCORE_MAX}</span>
         </p>
-        <p className="mt-1 text-xs opacity-70">score global</p>
+        <span className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium opacity-80">
+          <span
+            className={cn(
+              "size-2 rounded-full",
+              sc.key === "green"
+                ? "bg-emerald-500"
+                : sc.key === "amber"
+                  ? "bg-amber-500"
+                  : "bg-rose-500",
+            )}
+            aria-hidden
+          />
+          {sc.label}
+        </span>
       </div>
     </div>
   )

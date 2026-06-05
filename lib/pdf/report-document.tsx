@@ -11,6 +11,7 @@ import {
 import type { RegulatoryLevel, Verdict } from "@prisma/client"
 
 import type { GlobalAnalysis } from "@/lib/analysis/global"
+import { scoreTrafficHex } from "@/lib/decision/labels"
 
 // ── Données structurées du rapport ───────────────────────────
 export interface ReportData {
@@ -59,13 +60,6 @@ export interface ReportData {
   } | null
 }
 
-const VERDICT_HEX: Record<Verdict, string> = {
-  GO: "#059669",
-  POC: "#2563eb",
-  STUDY: "#d97706",
-  AUTOMATION: "#7c3aed",
-  NOGO: "#e11d48",
-}
 const RISK_HEX: Record<RegulatoryLevel, string> = {
   HIGH: "#e11d48",
   MEDIUM: "#d97706",
@@ -282,7 +276,15 @@ function ScoreBox({
 }
 
 export function ReportDocument({ data }: { data: ReportData }) {
-  const vHex = VERDICT_HEX[data.verdict]
+  // Couleur de la bannière = feu tricolore selon le score (vert / jaune / rouge).
+  const vHex = scoreTrafficHex(data.scoreTotal)
+  const scPct = (data.scoreTotal / 18) * 100
+  const scLabel =
+    scPct >= 66
+      ? "Score favorable"
+      : scPct >= 40
+        ? "Score à surveiller"
+        : "Score défavorable"
   const an = data.analysis
   return (
     <Document>
@@ -306,7 +308,9 @@ export function ReportDocument({ data }: { data: ReportData }) {
               {data.scoreTotal}
               <Text style={{ fontSize: 11, color: MUTED }}>/18</Text>
             </Text>
-            <Text style={{ fontSize: 7.5, color: MUTED }}>score global</Text>
+            <Text style={{ fontSize: 7.5, color: vHex, fontFamily: "Helvetica-Bold" }}>
+              {scLabel}
+            </Text>
           </View>
         </View>
 

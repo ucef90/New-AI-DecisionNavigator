@@ -140,6 +140,49 @@ export interface DecisionScore {
   total: number
 }
 
+/** Score maximal possible (6 axes × 3). */
+export const SCORE_MAX = 18
+
+/**
+ * Feu tricolore du score global : vert / jaune / rouge selon le total obtenu.
+ * Indépendant du verdict — reflète uniquement la qualité du score.
+ * Seuils : vert ≥ 66 %, jaune ≥ 40 %, rouge en dessous.
+ */
+export function scoreTrafficStyle(
+  total: number,
+  max: number = SCORE_MAX,
+): { key: "green" | "amber" | "red"; label: string; className: string } {
+  const pct = (total / max) * 100
+  if (pct >= 66)
+    return {
+      key: "green",
+      label: "Score favorable",
+      className:
+        "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    }
+  if (pct >= 40)
+    return {
+      key: "amber",
+      label: "Score à surveiller",
+      className:
+        "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    }
+  return {
+    key: "red",
+    label: "Score défavorable",
+    className:
+      "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
+  }
+}
+
+/** Code couleur hexadécimal du feu tricolore (pour le PDF). */
+export function scoreTrafficHex(total: number, max: number = SCORE_MAX): string {
+  const pct = (total / max) * 100
+  if (pct >= 66) return "#059669"
+  if (pct >= 40) return "#d97706"
+  return "#e11d48"
+}
+
 export const AXIS_LABELS: Record<keyof Omit<DecisionScore, "total">, string> = {
   axe1: "Clarté du besoin",
   axe2: "Pertinence IA",
