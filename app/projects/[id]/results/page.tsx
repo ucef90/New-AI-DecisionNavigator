@@ -168,6 +168,12 @@ export default async function ResultsPage({
                 Exporter le PDF
               </a>
             </Button>
+            <Button asChild>
+              <Link href={`/projects/${project.id}/analysis`}>
+                <Polygon className="size-4" aria-hidden />
+                Analyse globale
+              </Link>
+            </Button>
           </div>
         </div>
       </header>
