@@ -12,6 +12,11 @@ export class StubProvider implements LLMProvider {
   async complete({ user }: LLMPrompt): Promise<string> {
     const p = user.toLowerCase()
 
+    // Analyse de contexte (attend du JSON avec businessNeed)
+    if (p.includes("businessneed")) {
+      return this.analyzeContextDoc(user)
+    }
+
     // Prompt 1 — reformulation du besoin (attend du JSON avec problemReformulated)
     if (p.includes("problemreformulated")) {
       return JSON.stringify({
@@ -239,6 +244,106 @@ export class StubProvider implements LLMProvider {
       ],
     }
     return JSON.stringify(result)
+  }
+
+  /**
+   * Analyse de contexte déterministe qui LIT réellement le document :
+   * extrait les sections nommées (Contexte, Objectifs, Description, Bénéfices,
+   * Problème…) d'une fiche projet, à défaut un extrait représentatif du texte.
+   */
+  private analyzeContextDoc(user: string): string {
+    const descMatch = user.match(/DESCRIPTION FOURNIE\s*:\s*([^\n]+)/i)
+    let desc = descMatch ? descMatch[1].trim() : ""
+    if (desc === "(non renseignée)") desc = ""
+
+    const docIdx = user.indexOf("DOCUMENTS DE CONTEXTE")
+    let docRaw =
+      docIdx >= 0
+        ? user.slice(docIdx).replace(/^DOCUMENTS DE CONTEXTE\s*:?/i, "")
+        : ""
+    // Coupe les instructions de prompt qui suivent le document (schéma JSON).
+    const cut = docRaw.indexOf("Analyse et réponds")
+    if (cut >= 0) docRaw = docRaw.slice(0, cut)
+    const hasDocs = docRaw.replace(/\[…\]/g, "").trim().length > 40
+    const low = (desc + " " + docRaw).toLowerCase()
+    const has = (...k: string[]) => k.some((x) => low.includes(x))
+
+    // Extraction d'une section nommée du document ("Contexte du projet\n ...")
+    const section = (...labels: string[]): string => {
+      for (const lab of labels) {
+        const re = new RegExp(
+          `${lab}[^\\n:]{0,40}:?\\s*\\n?\\s*([\\s\\S]{30,500}?)(?:\\n\\s*\\n|\\n[A-ZÀ-Ÿ0-9][^\\n]{0,45}\\n|$)`,
+          "i",
+        )
+        const m = docRaw.match(re)
+        if (m && m[1]) {
+          const t = m[1].replace(/\s+/g, " ").trim()
+          if (t.length > 25) return t
+        }
+      }
+      return ""
+    }
+
+    const ctx = section("contexte du projet", "contexte", "description détaillée du projet", "description détaillée")
+    const obj = section("objectifs du projet", "objectifs", "objectif")
+    const benef = section("bénéfices du projet", "bénéfices", "gains attendus")
+    const probl = section("problème", "difficultés rencontrées", "enjeux")
+
+    // Extrait représentatif si aucune section nommée
+    const firstExcerpt = (): string => {
+      const clean = docRaw
+        .replace(/\[…\]/g, " ")
+        .replace(/page \d+ sur \d+/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+      return clean.slice(0, 400)
+    }
+
+    const processes: string[] = []
+    if (has("tri", "saisie", "instruction", "classement", "courrier", "email", "mail", "dossier", "numéris", "lad"))
+      processes.push("traitement / instruction de dossiers ou de courriers")
+    if (has("contrôle", "vérif", "recevabilité", "complétude"))
+      processes.push("contrôles de recevabilité / vérification")
+    if (has("réponse", "répondre", "relation usager", "interprétariat"))
+      processes.push("réponse / relation usager")
+    if (has("classification", "extraction", "découpe"))
+      processes.push("classification / extraction de données")
+
+    const dataPoints: string[] = []
+    if (has("iodas", "solis", "genesis", "si métier")) dataPoints.push("SI métier (Iodas / Solis…)")
+    if (has("outlook", "messagerie", "mail")) dataPoints.push("messagerie / emails")
+    if (has("multigest", "ged", "numéris", "scan")) dataPoints.push("GED / documents numérisés")
+    if (has("cerfa", "formulaire", "dossier")) dataPoints.push("formulaires / dossiers (CERFA…)")
+    if (has("santé", "social", "handicap", "médical")) dataPoints.push("données sensibles (santé / social)")
+
+    const stakes: string[] = []
+    if (has("délai", "retard", "long", "instruction")) stakes.push("délais d'instruction")
+    if (has("charge", "chronophage", "répétit", "manuel", "volume")) stakes.push("charge de travail des agents")
+    if (has("rgpd", "confidentialité", "données personnelles", "santé", "éthique")) stakes.push("confidentialité / conformité RGPD")
+    if (has("erreur", "fiabilit", "qualité")) stakes.push("fiabilité / qualité du traitement")
+    if (has("coût", "budget", "prestataire", "rationalis")) stakes.push("maîtrise des coûts")
+
+    // Synthèse : priorité au contenu réel du document
+    let summary = ""
+    if (ctx) summary = ctx
+    else if (hasDocs) summary = firstExcerpt()
+    else if (desc) summary = desc
+    else summary = "Contexte à préciser : aucun document ni description exploitable."
+    if (obj) summary += ` Objectifs : ${obj}`
+    if (benef && summary.length < 350) summary += ` Bénéfices attendus : ${benef}`
+
+    const businessNeed =
+      ctx || probl || obj || desc ||
+      "Réduire la charge et les délais liés au traitement manuel décrit dans les documents."
+
+    return JSON.stringify({
+      summary: summary.slice(0, 700),
+      businessNeed: businessNeed.slice(0, 400),
+      processes,
+      dataPoints,
+      stakes,
+      detectedSignals: this.detectSignals(low),
+    })
   }
 
   private detectSignals(text: string): string[] {

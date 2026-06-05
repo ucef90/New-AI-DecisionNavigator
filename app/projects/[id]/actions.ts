@@ -5,6 +5,8 @@ import { redirect } from "next/navigation"
 import { PDFParse } from "pdf-parse"
 
 import { db } from "@/lib/db"
+import { analyzeProjectContext } from "@/lib/context/generate"
+import type { ContextResult } from "@/lib/prompts/context"
 
 export interface UploadState {
   error?: string
@@ -61,6 +63,13 @@ export async function deleteDocument(
 ): Promise<void> {
   await db.attachment.deleteMany({ where: { id: attachmentId, projectId } })
   revalidatePath(`/projects/${projectId}`)
+}
+
+/** Analyse les documents + la description pour produire une synthèse de contexte. */
+export async function analyzeContext(
+  projectId: string,
+): Promise<ContextResult | null> {
+  return analyzeProjectContext(projectId)
 }
 
 /** Supprime définitivement un projet (cascade : réponses, décision, alertes…). */

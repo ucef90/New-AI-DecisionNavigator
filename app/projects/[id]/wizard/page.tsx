@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 
 import { db } from "@/lib/db"
 import type { AnswerMap } from "@/lib/questions"
+import { parseContext, type ContextResult } from "@/lib/prompts/context"
 import { PageContainer } from "@/components/layout/page-container"
 import { Wizard } from "@/components/wizard/wizard"
 
@@ -40,6 +41,11 @@ export default async function WizardPage({
     date: dateFmt.format(a.createdAt),
   }))
 
+  let initialContext: ContextResult | null = null
+  if (project.contextBrief) {
+    initialContext = parseContext(project.contextBrief)
+  }
+
   return (
     <PageContainer>
       <Wizard
@@ -47,6 +53,7 @@ export default async function WizardPage({
         projectName={project.name}
         initialAnswers={initialAnswers}
         initialDocuments={initialDocuments}
+        initialContext={initialContext}
       />
     </PageContainer>
   )

@@ -8,7 +8,7 @@ import {
   CheckCircle,
   Sparkle,
   CircleNotch,
-  Paperclip,
+  FolderOpen,
 } from "@phosphor-icons/react/dist/ssr"
 
 import {
@@ -17,12 +17,14 @@ import {
   type AnswerMap,
 } from "@/lib/questions"
 import type { ReformulationResult } from "@/lib/prompts/reformulate"
+import type { ContextResult } from "@/lib/prompts/context"
 import { cn } from "@/lib/utils"
 import {
   saveAnswer,
   reformulateQ1,
   completeWizard,
 } from "@/app/projects/[id]/wizard/actions"
+import { analyzeContext } from "@/app/projects/[id]/actions"
 import { QuestionInput } from "@/components/wizard/question-input"
 import {
   ProjectDocuments,
@@ -42,11 +44,13 @@ export function Wizard({
   projectName,
   initialAnswers,
   initialDocuments,
+  initialContext,
 }: {
   projectId: string
   projectName: string
   initialAnswers: AnswerMap
   initialDocuments: DocItem[]
+  initialContext: ContextResult | null
 }) {
   const reduce = useReducedMotion()
   const [answers, setAnswers] = useState<AnswerMap>(initialAnswers)
@@ -55,26 +59,32 @@ export function Wizard({
     null,
   )
   const [analyzedText, setAnalyzedText] = useState<string | null>(null)
+  const [context, setContext] = useState<ContextResult | null>(initialContext)
   const [reformPending, startReform] = useTransition()
   const [savePending, startSave] = useTransition()
   const [navPending, startNav] = useTransition()
+  const [ctxPending, startCtx] = useTransition()
 
   const sequence = useMemo(() => getQuestionSequence(answers), [answers])
 
-  // L'étape finale (index = sequence.length) est l'écran "Documents (optionnel)".
+  // Étape 0 = Contexte ; étapes 1..N = questions.
   const [step, setStep] = useState(() => {
     const seq = getQuestionSequence(initialAnswers)
-    const firstUnanswered = seq.findIndex(
-      (q) => !isAnswered(initialAnswers[q.key]),
-    )
-    return firstUnanswered === -1 ? seq.length : firstUnanswered
+    const answeredCount = seq.filter((q) =>
+      isAnswered(initialAnswers[q.key]),
+    ).length
+    if (answeredCount === 0) return 0 // nouveau projet → Contexte
+    const fu = seq.findIndex((q) => !isAnswered(initialAnswers[q.key]))
+    return fu === -1 ? 1 : 1 + fu
   })
 
-  const onDocs = step >= sequence.length
-  const current = sequence[Math.min(step, sequence.length - 1)]
-  const value = answers[current.key]
-  const answered = onDocs ? true : isAnswered(value)
-  const isRegulatory = !onDocs && current.block === "Réglementation"
+  const onContext = step === 0
+  const qIndex = step - 1
+  const current = sequence[Math.min(Math.max(qIndex, 0), sequence.length - 1)]
+  const value = onContext ? undefined : answers[current.key]
+  const answered = onContext ? true : isAnswered(value)
+  const isRegulatory = !onContext && current.block === "Réglementation"
+  const isLastQuestion = step === sequence.length
 
   const setValue = (v: string | string[]) => {
     setAnswers((prev) => ({ ...prev, [current.key]: v }))
@@ -95,6 +105,19 @@ export function Wizard({
     setReformulation(null)
   }
 
+  const handleAnalyzeContext = () => {
+    startCtx(async () => {
+      const res = await analyzeContext(projectId)
+      if (res) {
+        setContext(res)
+        // Pré-remplit Q1 (besoin) si vide
+        setAnswers((prev) =>
+          isAnswered(prev.Q1) ? prev : { ...prev, Q1: res.businessNeed },
+        )
+      }
+    })
+  }
+
   const handleAnalyzeQ1 = () => {
     const text = (value as string)?.trim() ?? ""
     if (!text) return
@@ -106,10 +129,8 @@ export function Wizard({
   }
 
   const handleNext = () => {
-    if (onDocs) {
-      startNav(async () => {
-        await completeWizard(projectId)
-      })
+    if (onContext) {
+      goTo(1, 1)
       return
     }
     if (
@@ -124,7 +145,12 @@ export function Wizard({
         saveAnswer(projectId, current.key, (value as string) ?? "")
       })
     }
-    // Dernière question → écran Documents ; sinon question suivante.
+    if (isLastQuestion) {
+      startNav(async () => {
+        await completeWizard(projectId)
+      })
+      return
+    }
     goTo(step + 1, 1)
   }
 
@@ -134,15 +160,15 @@ export function Wizard({
   }
 
   const totalSteps = sequence.length + 1
-  const progressLabel = onDocs
-    ? "Documents (optionnel)"
+  const progressLabel = onContext
+    ? "Contexte du projet"
     : isRegulatory
-      ? `Réglementation · ${step - TOTAL_MAIN + 1} sur ${sequence.length - TOTAL_MAIN}`
-      : `Question ${step + 1} sur ${TOTAL_MAIN}`
+      ? `Réglementation · ${step - TOTAL_MAIN} sur ${sequence.length - TOTAL_MAIN}`
+      : `Question ${step} sur ${TOTAL_MAIN}`
   const percent = ((step + 1) / totalSteps) * 100
 
   const q1NeedsAnalysis =
-    !onDocs &&
+    !onContext &&
     current.key === "Q1" &&
     analyzedText !== ((value as string)?.trim() ?? "") &&
     answered
@@ -155,7 +181,6 @@ export function Wizard({
         {projectName}
       </p>
 
-      {/* Progression */}
       <div className="mb-8 space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span className="font-medium text-muted-foreground">
@@ -168,30 +193,20 @@ export function Wizard({
 
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
-          key={onDocs ? "__docs" : current.key}
+          key={onContext ? "__context" : current.key}
           initial={{ opacity: 0, x: direction * xOffset }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -direction * xOffset }}
           transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
         >
-          {onDocs ? (
-            <div>
-              <p className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
-                <Paperclip className="size-3.5" aria-hidden />
-                Documents (optionnel)
-              </p>
-              <h1 className="mb-2 text-xl font-semibold tracking-tight text-balance">
-                Ajoutez des documents au projet
-              </h1>
-              <p className="mb-5 text-sm text-muted-foreground">
-                Cadrage, note PPNUM, proposition reçue… Tout document utile pour
-                enrichir le dossier (PDF, txt). Cette étape est facultative.
-              </p>
-              <ProjectDocuments
-                projectId={projectId}
-                documents={initialDocuments}
-              />
-            </div>
+          {onContext ? (
+            <ContextStep
+              projectId={projectId}
+              documents={initialDocuments}
+              context={context}
+              pending={ctxPending}
+              onAnalyze={handleAnalyzeContext}
+            />
           ) : (
             <div>
               <p className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">
@@ -222,7 +237,6 @@ export function Wizard({
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation */}
       <div className="mt-8 flex items-center justify-between border-t pt-5">
         <Button
           variant="ghost"
@@ -236,7 +250,7 @@ export function Wizard({
 
         <Button
           onClick={handleNext}
-          disabled={(!onDocs && !answered) || reformPending || navPending}
+          disabled={(!onContext && !answered) || reformPending || navPending}
         >
           {reformPending ? (
             <>
@@ -248,7 +262,12 @@ export function Wizard({
               <Sparkle className="size-4" aria-hidden />
               Analyser ma réponse
             </>
-          ) : onDocs ? (
+          ) : onContext ? (
+            <>
+              Commencer le questionnaire
+              <ArrowRight className="size-4" aria-hidden />
+            </>
+          ) : isLastQuestion ? (
             navPending ? (
               <>
                 <CircleNotch className="size-4 animate-spin" aria-hidden />
@@ -268,6 +287,102 @@ export function Wizard({
           )}
         </Button>
       </div>
+    </div>
+  )
+}
+
+function ContextStep({
+  projectId,
+  documents,
+  context,
+  pending,
+  onAnalyze,
+}: {
+  projectId: string
+  documents: DocItem[]
+  context: ContextResult | null
+  pending: boolean
+  onAnalyze: () => void
+}) {
+  return (
+    <div>
+      <p className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-primary">
+        <FolderOpen className="size-3.5" aria-hidden />
+        Contexte du projet
+      </p>
+      <h1 className="mb-2 text-xl font-semibold tracking-tight text-balance">
+        Documents &amp; contexte
+      </h1>
+      <p className="mb-5 text-sm text-muted-foreground">
+        Importez les documents utiles (cadrage, note PPNUM, fiche projet…). L'outil
+        les lit pour comprendre le besoin et adapter le questionnaire. Sans
+        document, l'analyse se basera sur la description du projet.
+      </p>
+
+      <ProjectDocuments projectId={projectId} documents={documents} />
+
+      <div className="mt-5">
+        <Button
+          variant="outline"
+          onClick={onAnalyze}
+          disabled={pending}
+          className="w-full sm:w-auto"
+        >
+          {pending ? (
+            <>
+              <CircleNotch className="size-4 animate-spin" aria-hidden />
+              Analyse du contexte…
+            </>
+          ) : (
+            <>
+              <Sparkle className="size-4" aria-hidden />
+              {context ? "Réanalyser le contexte" : "Analyser le contexte"}
+            </>
+          )}
+        </Button>
+      </div>
+
+      {context ? (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="mt-5 space-y-3 rounded-lg border bg-accent/40 p-4 text-sm"
+        >
+          <div className="flex items-center gap-2 font-medium text-primary">
+            <Sparkle className="size-4" weight="fill" aria-hidden />
+            Compréhension du contexte
+          </div>
+          <p className="leading-relaxed">{context.summary}</p>
+          {context.businessNeed ? (
+            <p>
+              <span className="font-medium">Besoin identifié : </span>
+              <span className="text-muted-foreground">{context.businessNeed}</span>
+            </p>
+          ) : null}
+          <ChipList label="Processus" items={context.processes} />
+          <ChipList label="Données" items={context.dataPoints} />
+          <ChipList label="Enjeux" items={context.stakes} />
+          <p className="pt-1 text-xs text-muted-foreground">
+            La description du besoin (Q1) a été pré-remplie à partir de cette
+            analyse — vous pourrez l'ajuster.
+          </p>
+        </motion.div>
+      ) : null}
+    </div>
+  )
+}
+
+function ChipList({ label, items }: { label: string; items: string[] }) {
+  if (!items || items.length === 0) return null
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-muted-foreground">{label} :</span>
+      {items.map((it, i) => (
+        <Badge key={i} variant="secondary" className="font-normal">
+          {it}
+        </Badge>
+      ))}
     </div>
   )
 }
@@ -323,9 +438,9 @@ function ReformulationPanel({ result }: { result: ReformulationResult }) {
           <span className="text-xs text-muted-foreground">
             Signaux détectés :
           </span>
-          {result.detectedSignals.map((s) => (
-            <Badge key={s} variant="secondary" className="font-normal">
-              {s}
+          {result.detectedSignals.map((sig) => (
+            <Badge key={sig} variant="secondary" className="font-normal">
+              {sig}
             </Badge>
           ))}
         </div>

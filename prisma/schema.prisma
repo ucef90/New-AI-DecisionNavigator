@@ -31,6 +31,7 @@ model Project {
   name             String
   direction        String?
   description      String?
+  contextBrief     String? // synthèse du contexte produite à partir des documents
   status           ProjectStatus     @default(DRAFT)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
