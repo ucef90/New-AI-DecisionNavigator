@@ -1,7 +1,7 @@
 "use client"
 
 import { useFormState, useFormStatus } from "react-dom"
-import { ArrowRight } from "@phosphor-icons/react/dist/ssr"
+import { ArrowRight, FolderOpen } from "@phosphor-icons/react/dist/ssr"
 
 import { createProjectAction } from "@/app/projects/actions"
 import { Button } from "@/components/ui/button"
@@ -61,6 +61,24 @@ export function NewProjectForm() {
         <p className="text-xs text-muted-foreground">
           Facultatif. Vous décrirez le besoin en détail dans le parcours.
         </p>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-lg border bg-accent/40 p-4">
+        <FolderOpen
+          className="mt-0.5 size-5 shrink-0 text-primary"
+          aria-hidden
+        />
+        <div className="space-y-0.5 text-sm">
+          <p className="font-medium">
+            Vos documents s&apos;importent à la première étape
+          </p>
+          <p className="text-muted-foreground">
+            Juste après la création, l&apos;étape «&nbsp;Contexte&nbsp;» vous
+            permet de déposer vos fichiers (cadrage, note PPNUM, fiche
+            projet…). L&apos;outil les lit pour comprendre le besoin et adapter
+            le questionnaire.
+          </p>
+        </div>
       </div>
 
       {state.error ? (
