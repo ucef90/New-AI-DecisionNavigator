@@ -110,10 +110,14 @@ export function Wizard({
       const res = await analyzeContext(projectId)
       if (res) {
         setContext(res)
-        // Pré-remplit Q1 (besoin) si vide
-        setAnswers((prev) =>
-          isAnswered(prev.Q1) ? prev : { ...prev, Q1: res.businessNeed },
-        )
+        // Pré-remplit, à partir du contexte, les questions textuelles si vides
+        setAnswers((prev) => {
+          const next = { ...prev }
+          if (!isAnswered(next.Q1) && res.businessNeed) next.Q1 = res.businessNeed
+          if (!isAnswered(next.Q15) && res.processes.length > 0)
+            next.Q15 = res.processes.join(" ; ")
+          return next
+        })
       }
     })
   }
