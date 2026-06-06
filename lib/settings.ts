@@ -56,6 +56,8 @@ export interface AppSettings {
   openaiBaseUrl: string
   mistralApiKey: string
   mistralModel: string
+  /** Patience max (ms) pour les générations longues (rapport). */
+  llmTimeoutMs: number
   // --- RAG / embeddings ---
   embeddingMode: EmbeddingMode
   ollamaEmbedModel: string
@@ -82,6 +84,7 @@ function envDefaults(): AppSettings {
     openaiBaseUrl: process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
     mistralApiKey: process.env.MISTRAL_API_KEY ?? "",
     mistralModel: process.env.MISTRAL_MODEL ?? "mistral-small-latest",
+    llmTimeoutMs: clampInt(process.env.LLM_TIMEOUT_MS, 180_000, 10_000, 600_000),
     embeddingMode: (EMBEDDING_MODES as string[]).includes(
       (process.env.EMBEDDING_PROVIDER ?? "").toLowerCase(),
     )
@@ -93,6 +96,18 @@ function envDefaults(): AppSettings {
     knowledgeScope:
       process.env.KNOWLEDGE_SCOPE === "project" ? "project" : "global",
   }
+}
+
+/** Entier borné, avec valeur par défaut si invalide. */
+function clampInt(
+  raw: string | number | undefined,
+  def: number,
+  min: number,
+  max: number,
+): number {
+  const n = typeof raw === "number" ? raw : Number(raw)
+  if (!Number.isFinite(n)) return def
+  return Math.max(min, Math.min(max, Math.round(n)))
 }
 
 /** Ne garde que les champs réellement renseignés (les vides retombent sur l'env). */

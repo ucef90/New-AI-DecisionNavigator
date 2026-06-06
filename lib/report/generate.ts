@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { complete } from "@/lib/llm"
+import { complete, StubProvider } from "@/lib/llm"
 import { getAppSettings } from "@/lib/settings"
 import { retrieve, buildKnowledgeBlock, ingestText } from "@/lib/rag"
 import { buildReportPrompt } from "@/lib/prompts/report"
@@ -76,12 +76,25 @@ export async function generateReport(projectId: string): Promise<string | null> 
     knowledge,
   })
 
+  const settings = await getAppSettings()
+
   let content = ""
+  let usedFallback = false
   try {
-    content = await complete(prompt)
+    content = await complete(prompt, { timeoutMs: settings.llmTimeoutMs })
   } catch (e) {
     console.error("[generateReport] LLM error:", e)
-    return null
+  }
+  if (!content.trim()) {
+    // Repli déterministe : garantit un rapport même si le LLM échoue/expire
+    // (modèle local lent). Dégradé mais exploitable — jamais d'écran vide.
+    try {
+      content = await new StubProvider().complete(prompt)
+      usedFallback = true
+      console.warn("[generateReport] repli déterministe (stub) utilisé.")
+    } catch (e) {
+      console.error("[generateReport] échec du repli stub:", e)
+    }
   }
   if (!content.trim()) return null
 
@@ -90,12 +103,16 @@ export async function generateReport(projectId: string): Promise<string | null> 
     data: { projectId, format: "MARKDOWN", content },
   })
   await db.auditLog.create({
-    data: { projectId, action: "REPORT_GENERATED" },
+    data: {
+      projectId,
+      action: "REPORT_GENERATED",
+      detail: { provider: usedFallback ? "stub-fallback" : "llm" },
+    },
   })
 
   // Auto-enrichissement : le rapport devient une connaissance réutilisable
   // (global ou cloisonné au projet selon le périmètre configuré).
-  const { knowledgeScope } = await getAppSettings()
+  const knowledgeScope = settings.knowledgeScope
   await ingestText({
     title: `Rapport — ${project.name}`,
     text: content,

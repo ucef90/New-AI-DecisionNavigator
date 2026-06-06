@@ -32,6 +32,11 @@ export async function updateLlmSettings(formData: FormData): Promise<void> {
   const knowledgeScope: KnowledgeScope =
     get("knowledgeScope") === "project" ? "project" : "global"
 
+  const sec = Number(get("llmTimeoutSec"))
+  const llmTimeoutMs = Number.isFinite(sec)
+    ? Math.max(10, Math.min(600, Math.round(sec))) * 1000
+    : 180_000
+
   const partial: Partial<AppSettings> = {
     llmMode,
     anthropicModel: get("anthropicModel"),
@@ -44,6 +49,7 @@ export async function updateLlmSettings(formData: FormData): Promise<void> {
     ollamaEmbedModel: get("ollamaEmbedModel"),
     openaiEmbedModel: get("openaiEmbedModel"),
     knowledgeScope,
+    llmTimeoutMs,
   }
 
   // Clés sensibles : ne les écrire que si une nouvelle valeur est fournie.

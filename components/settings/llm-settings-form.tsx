@@ -33,6 +33,7 @@ export interface LlmSettingsView {
   ollamaEmbedModel: string
   openaiEmbedModel: string
   knowledgeScope: KnowledgeScope
+  llmTimeoutMs: number
 }
 
 const EMBED_OPTIONS: { value: EmbeddingMode; label: string }[] = [
@@ -106,6 +107,23 @@ export function LlmSettingsForm({ view }: { view: LlmSettingsView }) {
               ))}
             </select>
             <p className="text-xs text-muted-foreground">{MODE_HELP[mode]}</p>
+            <div className="space-y-1.5 pt-2">
+              <Label htmlFor="llmTimeoutSec">
+                Délai max de génération (secondes)
+              </Label>
+              <Input
+                id="llmTimeoutSec"
+                name="llmTimeoutSec"
+                type="number"
+                min={10}
+                max={600}
+                defaultValue={Math.round(view.llmTimeoutMs / 1000)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Patience pour le rapport (génération longue). Modèle local lent →
+                augmentez (ex. 300). Au-delà, repli déterministe garanti.
+              </p>
+            </div>
           </div>
 
           {/* Anthropic (visible en mode anthropic ou auto) */}
