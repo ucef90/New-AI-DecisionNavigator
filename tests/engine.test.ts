@@ -7,7 +7,11 @@ import {
   computeConfidence,
   computeScore,
 } from "@/lib/engine"
-import type { AnswerMap } from "@/lib/questions"
+import {
+  getActiveMainQuestions,
+  getQuestionSequence,
+  type AnswerMap,
+} from "@/lib/questions"
 
 // Base de réponses « neutres » ; chaque test surcharge ce qui l'intéresse.
 function answers(over: Partial<AnswerMap> = {}): AnswerMap {
@@ -90,4 +94,50 @@ test("Confiance — besoin clair, loin de tout seuil → high", () => {
   })
   assert.equal(c.confidence, "high")
   assert.equal(c.borderline, false)
+})
+
+// ── Masquage conditionnel des questions ───────────────────────
+test("Masquage — Q17 (qualité données) cachée si Q6 = no", () => {
+  const visible = getActiveMainQuestions(answers({ Q6: "yes_scattered" }))
+  assert.ok(visible.some((q) => q.key === "Q17"))
+  const hidden = getActiveMainQuestions(answers({ Q6: "no" }))
+  assert.ok(!hidden.some((q) => q.key === "Q17"))
+})
+
+test("Masquage — Q19 (structure documents) cachée si aucun document", () => {
+  const withDocs = getActiveMainQuestions(answers({ Q18: ["pdf"] }))
+  assert.ok(withDocs.some((q) => q.key === "Q19"))
+  const noDocs = getActiveMainQuestions(answers({ Q18: ["aucun"] }))
+  assert.ok(!noDocs.some((q) => q.key === "Q19"))
+  // Q18 non répondue → pas de document connu → Q19 masquée aussi.
+  const unset = getActiveMainQuestions(answers())
+  assert.ok(!unset.some((q) => q.key === "Q19"))
+})
+
+test("Masquage — Q21 (exceptions) cachée si process stable + cas simples", () => {
+  const hidden = getActiveMainQuestions(
+    answers({ Q4: "stable", Q5: "high_simple" }),
+  )
+  assert.ok(!hidden.some((q) => q.key === "Q21"))
+  const visible = getActiveMainQuestions(
+    answers({ Q4: "variable", Q5: "high_complex" }),
+  )
+  assert.ok(visible.some((q) => q.key === "Q21"))
+})
+
+test("Masquage — n'affecte jamais le verdict (moteur ignore Q14–Q26)", () => {
+  // Mêmes réponses Q1–Q13, que les questions masquables soient remplies ou non.
+  const base = answers({ Q4: "stable", Q5: "high_simple" })
+  const withExtra = { ...base, Q17: "faible", Q19: "semi", Q21: "souvent" }
+  assert.deepEqual(runEngine(withExtra).score, runEngine(base).score)
+  assert.equal(runEngine(withExtra).verdict, runEngine(base).verdict)
+})
+
+test("Masquage — la séquence reste cohérente (questions réglementaires après)", () => {
+  const seq = getQuestionSequence(answers({ Q6: "no", Q18: ["aucun"] }))
+  const keys = seq.map((q) => q.key)
+  assert.ok(!keys.includes("Q17"))
+  assert.ok(!keys.includes("Q19"))
+  // QR1 (toujours applicable) présent et après les questions principales.
+  assert.ok(keys.includes("QR1"))
 })

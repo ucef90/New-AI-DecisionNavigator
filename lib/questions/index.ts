@@ -229,6 +229,8 @@ export const MAIN_QUESTIONS: Question[] = [
     block: "Qualité des données",
     type: "single",
     label: "Quelle est la qualité de vos données (fiabilité, complétude) ?",
+    // Sans données disponibles (Q6), la question de leur qualité est sans objet.
+    condition: (a) => pick(a, "Q6") !== "no",
     options: [
       { value: "bonne", label: "Bonne : fiables, complètes, accessibles" },
       { value: "moyenne", label: "Moyenne : quelques lacunes" },
@@ -257,6 +259,11 @@ export const MAIN_QUESTIONS: Question[] = [
     block: "Documents exploités",
     type: "single",
     label: "Ces documents sont-ils structurés ou nécessitent-ils une interprétation ?",
+    // Aucun document exploité (Q18 = « Pas de documents ») → on saute la question.
+    condition: (a) => {
+      const fmts = toArray(a.Q18).filter((v) => v !== "aucun")
+      return fmts.length > 0
+    },
     options: [
       { value: "structures", label: "Structurés (formulaires, modèles fixes)" },
       { value: "semi", label: "Semi-structurés (modèles variés)" },
@@ -284,6 +291,10 @@ export const MAIN_QUESTIONS: Question[] = [
     block: "Exceptions",
     type: "single",
     label: "À quelle fréquence rencontrez-vous des cas particuliers ou ambigus ?",
+    // Processus parfaitement homogène et répétitif (Q4 stable + Q5 cas simples) :
+    // la question des exceptions n'a pas de sens.
+    condition: (a) =>
+      !(pick(a, "Q4") === "stable" && pick(a, "Q5") === "high_simple"),
     options: [
       { value: "rarement", label: "Rarement : cas très homogènes" },
       { value: "parfois", label: "Parfois" },
@@ -416,6 +427,17 @@ function toArray(v: string | string[] | undefined): string[] {
   return []
 }
 
+/** Valeur d'une question à choix unique (premier élément si tableau). */
+function pick(a: AnswerMap, key: string): string | undefined {
+  const v = a[key]
+  return Array.isArray(v) ? v[0] : v
+}
+
+/** Questions principales effectivement applicables selon les réponses. */
+export function getActiveMainQuestions(answers: AnswerMap): Question[] {
+  return MAIN_QUESTIONS.filter((q) => !q.condition || q.condition(answers))
+}
+
 /** Questions réglementaires effectivement applicables selon les réponses. */
 export function getActiveRegulatoryQuestions(answers: AnswerMap): Question[] {
   return REGULATORY_QUESTIONS.filter((q) => !q.condition || q.condition(answers))
@@ -423,7 +445,10 @@ export function getActiveRegulatoryQuestions(answers: AnswerMap): Question[] {
 
 /** Séquence complète du parcours selon l'état des réponses. */
 export function getQuestionSequence(answers: AnswerMap): Question[] {
-  return [...MAIN_QUESTIONS, ...getActiveRegulatoryQuestions(answers)]
+  return [
+    ...getActiveMainQuestions(answers),
+    ...getActiveRegulatoryQuestions(answers),
+  ]
 }
 
 export const TOTAL_MAIN = MAIN_QUESTIONS.length

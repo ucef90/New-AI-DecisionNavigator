@@ -13,7 +13,7 @@ import {
 
 import {
   getQuestionSequence,
-  TOTAL_MAIN,
+  getActiveMainQuestions,
   type AnswerMap,
 } from "@/lib/questions"
 import type { ReformulationResult } from "@/lib/prompts/reformulate"
@@ -66,6 +66,12 @@ export function Wizard({
   const [ctxPending, startCtx] = useTransition()
 
   const sequence = useMemo(() => getQuestionSequence(answers), [answers])
+  // Nombre de questions principales réellement affichées (certaines sont
+  // masquées dynamiquement selon les réponses) — pour l'indicateur de progression.
+  const mainCount = useMemo(
+    () => getActiveMainQuestions(answers).length,
+    [answers],
+  )
 
   // Étape 0 = Contexte ; étapes 1..N = questions.
   const [step, setStep] = useState(() => {
@@ -167,8 +173,8 @@ export function Wizard({
   const progressLabel = onContext
     ? "Contexte du projet"
     : isRegulatory
-      ? `Réglementation · ${step - TOTAL_MAIN} sur ${sequence.length - TOTAL_MAIN}`
-      : `Question ${step} sur ${TOTAL_MAIN}`
+      ? `Réglementation · ${step - mainCount} sur ${sequence.length - mainCount}`
+      : `Question ${step} sur ${mainCount}`
   const percent = ((step + 1) / totalSteps) * 100
 
   const q1NeedsAnalysis =
