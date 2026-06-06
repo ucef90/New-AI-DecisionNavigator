@@ -1,4 +1,5 @@
 import { db } from "@/lib/db"
+import { logEvent } from "@/lib/observability"
 import { resolveEmbeddingProvider } from "./embeddings"
 import { cosine } from "./store"
 import type { KnowledgeSource, RetrievedChunk } from "./types"
@@ -36,6 +37,7 @@ export async function retrieve(
   const q = (query ?? "").trim()
   if (q.length < 3) return []
 
+  const start = Date.now()
   try {
     const embedder = await resolveEmbeddingProvider()
     const [qv] = await embedder.embed([q])
@@ -93,7 +95,7 @@ export async function retrieve(
     })
     const byId = new Map(details.map((d) => [d.id, d]))
 
-    return picked.map((p) => {
+    const out = picked.map((p) => {
       const d = byId.get(p.id)
       return {
         documentId: p.documentId,
@@ -103,6 +105,13 @@ export async function retrieve(
         score: p.score,
       }
     })
+    logEvent("rag.retrieve", {
+      model: embedder.modelTag,
+      candidates: candidates.length,
+      results: out.length,
+      ms: Date.now() - start,
+    })
+    return out
   } catch (e) {
     console.error("[rag.retrieve] échec:", e)
     return []

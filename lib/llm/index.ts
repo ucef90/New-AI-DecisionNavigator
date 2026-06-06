@@ -6,6 +6,7 @@ import { MistralProvider } from "./providers/mistral"
 import { OllamaProvider } from "./providers/ollama"
 import { AnthropicProvider } from "./providers/anthropic"
 import { getAppSettings, type AppSettings } from "@/lib/settings"
+import { logEvent } from "@/lib/observability"
 
 export type {
   LLMProvider,
@@ -101,5 +102,25 @@ export async function complete(
   prompt: { system: string; user: string },
   opts?: import("./provider").LLMOptions,
 ): Promise<string> {
-  return (await resolveLLMProvider()).complete(prompt, opts)
+  const provider = await resolveLLMProvider()
+  const start = Date.now()
+  try {
+    const out = await provider.complete(prompt, opts)
+    logEvent("llm.complete", {
+      provider: provider.name,
+      ms: Date.now() - start,
+      ok: true,
+      json: !!opts?.json,
+      chars: out.length,
+    })
+    return out
+  } catch (e) {
+    logEvent("llm.complete", {
+      provider: provider.name,
+      ms: Date.now() - start,
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+    })
+    throw e
+  }
 }

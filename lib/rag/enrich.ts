@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
 import { getAppSettings } from "@/lib/settings"
+import { logEvent } from "@/lib/observability"
 import { ingestText } from "./ingest"
 import { resolveEmbeddingProvider } from "./embeddings"
 import { REFERENCE_DOCS } from "./knowledge/reference"
@@ -115,6 +116,8 @@ export async function reindexExisting(): Promise<{
   vendors: number
   decisions: number
 }> {
+  const start = Date.now()
+  logEvent("rag.reindex.start", {})
   const references = await seedReferenceKnowledge()
 
   const attachments = await db.attachment.findMany({
@@ -129,12 +132,14 @@ export async function reindexExisting(): Promise<{
   const decisions = await db.decision.findMany({ select: { projectId: true } })
   for (const d of decisions) await ingestDecisionForProject(d.projectId)
 
-  return {
+  const result = {
     references,
     attachments: attachments.length,
     vendors: vendors.length,
     decisions: decisions.length,
   }
+  logEvent("rag.reindex.done", { ...result, ms: Date.now() - start })
+  return result
 }
 
 /* ------------------------------ Statistiques ------------------------------ */
