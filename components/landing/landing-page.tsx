@@ -132,9 +132,9 @@ function ComplianceMark({ item }: { item: ComplianceItem }) {
           <span className="flex size-8 items-center justify-center rounded-lg bg-[#0084FF]/10 text-[#0084FF]">
             {"eu" in item && item.eu ? (
               <EuStars className="size-5" />
-            ) : (
+            ) : "Icon" in item ? (
               <item.Icon className="size-[18px]" weight="duotone" />
-            )}
+            ) : null}
           </span>
           <span className="font-display text-sm font-bold uppercase tracking-wide text-foreground/60">
             {item.label}

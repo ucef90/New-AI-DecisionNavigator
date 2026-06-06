@@ -136,12 +136,14 @@ export async function GET(
   let context: ReportData["context"] = null
   if (project.contextBrief) {
     const c = parseContext(project.contextBrief)
-    context = {
-      summary: c.summary,
-      businessNeed: c.businessNeed,
-      processes: c.processes,
-      dataPoints: c.dataPoints,
-      stakes: c.stakes,
+    if (c) {
+      context = {
+        summary: c.summary,
+        businessNeed: c.businessNeed,
+        processes: c.processes,
+        dataPoints: c.dataPoints,
+        stakes: c.stakes,
+      }
     }
   }
 
