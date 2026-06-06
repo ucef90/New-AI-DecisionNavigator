@@ -4,10 +4,12 @@ import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
 import { PageContainer } from "@/components/layout/page-container"
 import { Reveal } from "@/components/motion/reveal"
 import { NewProjectForm } from "@/components/projects/new-project-form"
+import { requireUser } from "@/lib/auth"
 
 export const metadata = { title: "Nouveau projet" }
 
-export default function NewProjectPage() {
+export default async function NewProjectPage() {
+  await requireUser()
   return (
     <PageContainer className="max-w-xl">
       <Link

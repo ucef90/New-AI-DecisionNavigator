@@ -3,6 +3,7 @@ import { DM_Sans } from "next/font/google"
 import localFont from "next/font/local"
 import "./globals.css"
 import { cn } from "@/lib/utils"
+import { getCurrentUser } from "@/lib/auth"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Navbar } from "@/components/layout/navbar"
 import { Toaster } from "@/components/ui/sonner"
@@ -26,9 +27,10 @@ export const metadata: Metadata = {
     "Outil de pré-cadrage IA : guider un chef de projet de collectivité publique vers la bonne décision technologique et réglementaire.",
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const user = await getCurrentUser()
   return (
     <html lang="fr" suppressHydrationWarning>
       <body
@@ -45,7 +47,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <div className="flex min-h-screen flex-col">
-            <Navbar />
+            <Navbar authed={!!user} />
             <main className="flex-1">{children}</main>
           </div>
           <Toaster richColors position="top-center" />

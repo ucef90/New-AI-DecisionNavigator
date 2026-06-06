@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getAppSettings } from "@/lib/settings"
+import { requireRole } from "@/lib/auth"
 import {
   LlmSettingsForm,
   type LlmSettingsView,
@@ -27,6 +28,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 }
 
 export default async function SettingsPage() {
+  await requireRole("ADMIN")
   const settings = await getAppSettings()
   const dbProvider = (process.env.DATABASE_PROVIDER ?? "sqlite").toLowerCase()
 

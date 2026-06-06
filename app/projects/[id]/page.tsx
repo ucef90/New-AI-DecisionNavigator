@@ -9,6 +9,7 @@ import {
 import type { Icon } from "@phosphor-icons/react"
 
 import { db } from "@/lib/db"
+import { requireUser } from "@/lib/auth"
 import { TECH_SHORT } from "@/lib/decision/labels"
 import { PageContainer, PageHeader } from "@/components/layout/page-container"
 import { VerdictBadge, RegulatoryLevelBadge } from "@/components/decision/badges"
@@ -31,6 +32,7 @@ export default async function ProjectPage({
 }: {
   params: { id: string }
 }) {
+  await requireUser()
   const project = await db.project.findUnique({
     where: { id: params.id },
     include: {

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { db } from "@/lib/db"
+import { requireUser } from "@/lib/auth"
 import { knowledgeStats, retrieve, SOURCE_LABELS } from "@/lib/rag"
 import { seedKnowledge, reindexKnowledge } from "./actions"
 
@@ -29,6 +30,7 @@ export default async function KnowledgePage({
 }: {
   searchParams: { q?: string }
 }) {
+  await requireUser()
   const q = (searchParams.q ?? "").trim()
 
   const [stats, docs, results] = await Promise.all([

@@ -16,6 +16,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { SignOutButton } from "@/components/layout/sign-out-button"
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "AI Pré-Cadrage"
 
@@ -26,7 +27,7 @@ const links = [
   { href: "/settings", label: "Paramètres", icon: GearSix },
 ]
 
-export function Navbar() {
+export function Navbar({ authed = false }: { authed?: boolean }) {
   const pathname = usePathname()
   const { resolvedTheme } = useTheme()
   const reduce = useReducedMotion()
@@ -141,6 +142,7 @@ export function Navbar() {
           />
 
           <ThemeToggle />
+          {authed ? <SignOutButton /> : null}
         </div>
       </header>
     )
@@ -187,8 +189,9 @@ export function Navbar() {
           })}
         </nav>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
           <ThemeToggle />
+          {authed ? <SignOutButton /> : null}
         </div>
       </div>
     </header>

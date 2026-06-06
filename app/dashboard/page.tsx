@@ -4,6 +4,7 @@ import { Plus, FileText } from "@phosphor-icons/react/dist/ssr"
 import type { Verdict, TechType } from "@prisma/client"
 
 import { db } from "@/lib/db"
+import { requireUser } from "@/lib/auth"
 import {
   VERDICT_STYLES,
   TECH_SHORT,
@@ -43,6 +44,7 @@ const dateFmt = new Intl.DateTimeFormat("fr-FR", {
 })
 
 export default async function DashboardPage() {
+  await requireUser()
   const projects = await db.project.findMany({
     orderBy: { createdAt: "desc" },
     include: { decision: true },
