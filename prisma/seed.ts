@@ -1,6 +1,7 @@
 import { db } from "@/lib/db"
 import { generateDecision } from "@/lib/engine/generate"
 import { generateReport } from "@/lib/report/generate"
+import { seedReferenceKnowledge } from "@/lib/rag"
 import type { Prisma } from "@prisma/client"
 
 const USER_ID = "demo-user"
@@ -158,6 +159,16 @@ async function main() {
     console.log(
       `✓ ${demo.name} → ${result?.verdict} / ${result?.techRecommendation ?? "—"} / ${result?.regulatoryLevel}`,
     )
+  }
+
+  // RAG : amorce le corpus de référence (réglementaire / méthodo) en plus des
+  // décisions et rapports déjà indexés par les générateurs ci-dessus.
+  // Tolérant aux pannes : un souci d'embedding ne doit pas casser le seed.
+  try {
+    const n = await seedReferenceKnowledge()
+    console.log(`✓ Référentiel RAG indexé (${n} document(s)).`)
+  } catch (e) {
+    console.warn("⚠ Indexation du référentiel RAG ignorée:", e)
   }
 
   console.log("Seed terminé.")
