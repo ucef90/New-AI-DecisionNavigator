@@ -1,4 +1,12 @@
 import { db } from "@/lib/db"
+import { encryptSecret, decryptSecret } from "@/lib/secret"
+
+/** Champs sensibles : chiffrés en base, déchiffrés à la lecture. */
+const SECRET_FIELDS = [
+  "anthropicApiKey",
+  "openaiApiKey",
+  "mistralApiKey",
+] as const
 
 /** Mode de sélection du fournisseur LLM. */
 export type LlmMode =
@@ -94,7 +102,10 @@ export async function getAppSettings(): Promise<AppSettings> {
     const row = await db.appSetting.findUnique({ where: { id: SINGLETON } })
     if (!row) return defaults
     const stored = (row.data ?? {}) as Partial<AppSettings>
-    return { ...defaults, ...pruneEmpty(stored) }
+    const merged: AppSettings = { ...defaults, ...pruneEmpty(stored) }
+    // Déchiffre les secrets (les valeurs d'env en clair passent inchangées).
+    for (const f of SECRET_FIELDS) merged[f] = decryptSecret(merged[f])
+    return merged
   } catch {
     // Table absente (migration non appliquée) → on retombe sur l'environnement.
     return defaults
@@ -107,7 +118,12 @@ export async function updateAppSettings(
 ): Promise<void> {
   const existing = await db.appSetting.findUnique({ where: { id: SINGLETON } })
   const current = (existing?.data ?? {}) as Partial<AppSettings>
-  const merged = { ...current, ...partial }
+  // Chiffre les secrets fournis avant de persister.
+  const incoming: Partial<AppSettings> = { ...partial }
+  for (const f of SECRET_FIELDS) {
+    if (incoming[f]) incoming[f] = encryptSecret(incoming[f] as string)
+  }
+  const merged = { ...current, ...incoming }
   await db.appSetting.upsert({
     where: { id: SINGLETON },
     create: { id: SINGLETON, data: merged },
