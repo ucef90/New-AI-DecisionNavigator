@@ -46,9 +46,15 @@ next-env.d.ts
 # Claude Code local config
 .claude/
 
-# Logos de marque (droits tiers) : fournis localement, non versionnés
+# Logos de conformité officiels : versionnés pour le déploiement.
+# On ignore d'éventuels fichiers de travail, mais on conserve les images.
 public/logos/*
 !public/logos/README.md
+!public/logos/*.png
+!public/logos/*.jpg
+!public/logos/*.jpeg
+!public/logos/*.svg
+!public/logos/*.webp
 
 # Artefacts Playwright MCP
 .playwright-mcp/
