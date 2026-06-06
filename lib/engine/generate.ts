@@ -29,7 +29,11 @@ export async function generateDecision(
     verdict: result.verdict,
     techRecommendation: result.techRecommendation,
     justification: result.justification,
-    score: result.score as unknown as Prisma.InputJsonValue,
+    score: {
+      ...result.score,
+      confidence: result.confidence,
+      borderline: result.borderline,
+    } as unknown as Prisma.InputJsonValue,
     rulesTriggered: result.rulesTriggered as unknown as Prisma.InputJsonValue,
     regulatoryLevel: result.regulatoryLevel,
   }

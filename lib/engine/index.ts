@@ -24,6 +24,8 @@ export interface AlertInput {
   deadline?: string
 }
 
+export type Confidence = "high" | "medium" | "low"
+
 export interface EngineResult {
   verdict: Verdict
   techRecommendation: TechType | null
@@ -32,6 +34,10 @@ export interface EngineResult {
   rulesTriggered: string[]
   regulatoryLevel: RegulatoryLevel
   alerts: AlertInput[]
+  /** Fiabilité de la décision (cas limites, réponses à clarifier). */
+  confidence: Confidence
+  /** Le score est proche d'un seuil de bascule de verdict. */
+  borderline: boolean
 }
 
 const SENSITIVE = ["health", "social", "legal"]
@@ -621,6 +627,43 @@ function buildJustification(
   return parts.join(" ")
 }
 
+// ── niveau de confiance / cas limites ─────────────────────────
+const VERDICT_THRESHOLDS = [6, 10, 15] // STUDY, POC, GO
+
+export function computeConfidence(
+  a: AnswerMap,
+  score: DecisionScore,
+): { confidence: Confidence; borderline: boolean; note: string } {
+  const dist = Math.min(...VERDICT_THRESHOLDS.map((t) => Math.abs(score.total - t)))
+  const borderline = dist <= 1
+
+  // Réponses « à clarifier » sur des axes structurants.
+  let unknowns = 0
+  if (single(a, "Q6") === "unknown") unknowns++
+  if (["unknown", "to_check"].includes(single(a, "Q9") ?? "")) unknowns++
+  if (single(a, "QR1") === "unknown") unknowns++
+  if (multi(a, "Q7").includes("unknown")) unknowns++
+  const q1Short = text(a, "Q1").trim().length < 40
+
+  let confidence: Confidence = "high"
+  if (borderline || unknowns >= 2 || q1Short) confidence = "low"
+  else if (unknowns === 1 || dist === 2) confidence = "medium"
+
+  const reasons: string[] = []
+  if (borderline) reasons.push("score proche d'un seuil de bascule")
+  if (unknowns) reasons.push(`${unknowns} réponse(s) à clarifier`)
+  if (q1Short) reasons.push("besoin peu détaillé")
+
+  const note =
+    confidence === "high"
+      ? "Confiance élevée : la décision est nette."
+      : `Confiance ${confidence === "low" ? "faible" : "moyenne"} (${reasons.join(
+          ", ",
+        )}) — à arbitrer avec un référent avant un engagement.`
+
+  return { confidence, borderline, note }
+}
+
 // ── point d'entrée ────────────────────────────────────────────
 export function runEngine(a: AnswerMap): EngineResult {
   const regulatoryLevel = computeRegulatoryLevel(a)
@@ -640,6 +683,10 @@ export function runEngine(a: AnswerMap): EngineResult {
       " Les processus étant peu formalisés, un cadrage préalable est recommandé avant tout développement."
   }
 
+  // Niveau de confiance / cas limite (le verdict déterministe est inchangé).
+  const { confidence, borderline, note } = computeConfidence(a, score)
+  if (confidence !== "high") justification += ` ${note}`
+
   return {
     verdict,
     techRecommendation: tech,
@@ -648,5 +695,7 @@ export function runEngine(a: AnswerMap): EngineResult {
     rulesTriggered: triggered,
     regulatoryLevel,
     alerts: generateAlerts(a, regulatoryLevel),
+    confidence,
+    borderline,
   }
 }
