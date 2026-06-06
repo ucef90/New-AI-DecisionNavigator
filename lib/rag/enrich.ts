@@ -1,8 +1,19 @@
 import { db } from "@/lib/db"
+import { getAppSettings } from "@/lib/settings"
 import { ingestText } from "./ingest"
 import { resolveEmbeddingProvider } from "./embeddings"
 import { REFERENCE_DOCS } from "./knowledge/reference"
 import type { KnowledgeSource } from "./types"
+
+/**
+ * Périmètre d'indexation d'une connaissance dérivée d'un projet :
+ *  - "global"  → projectId null (réutilisable partout)
+ *  - "project" → cloisonné au projet (pas de fuite inter-service)
+ */
+async function scopedProjectId(projectId: string): Promise<string | null> {
+  const { knowledgeScope } = await getAppSettings()
+  return knowledgeScope === "project" ? projectId : null
+}
 
 /* ------------------------- Helpers d'ingestion ------------------------- */
 
@@ -44,7 +55,7 @@ export async function ingestVendorAnalysis(vaId: string) {
     text: parts.join("\n"),
     source: "VENDOR",
     sourceRef: va.id,
-    projectId: null, // réutilisable par tous les projets
+    projectId: await scopedProjectId(va.projectId),
     tags: ["fournisseur"],
   })
 }
@@ -70,7 +81,7 @@ export async function ingestDecisionForProject(projectId: string) {
     text,
     source: "DECISION",
     sourceRef: d.id,
-    projectId: null,
+    projectId: await scopedProjectId(projectId),
     tags: ["décision", d.verdict],
   })
 }

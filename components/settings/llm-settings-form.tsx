@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Cpu } from "@phosphor-icons/react/dist/ssr"
 
 import { cn } from "@/lib/utils"
-import type { LlmMode, EmbeddingMode } from "@/lib/settings"
+import type { LlmMode, EmbeddingMode, KnowledgeScope } from "@/lib/settings"
 import { updateLlmSettings } from "@/app/settings/actions"
 import {
   Card,
@@ -32,6 +32,7 @@ export interface LlmSettingsView {
   embeddingMode: EmbeddingMode
   ollamaEmbedModel: string
   openaiEmbedModel: string
+  knowledgeScope: KnowledgeScope
 }
 
 const EMBED_OPTIONS: { value: EmbeddingMode; label: string }[] = [
@@ -215,6 +216,33 @@ export function LlmSettingsForm({ view }: { view: LlmSettingsView }) {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Périmètre des connaissances (cloisonnement RAG) */}
+          <div className="space-y-2 border-t pt-5">
+            <Label htmlFor="knowledgeScope">
+              Périmètre des connaissances dérivées
+            </Label>
+            <select
+              id="knowledgeScope"
+              name="knowledgeScope"
+              defaultValue={view.knowledgeScope}
+              className={inputCls}
+            >
+              <option value="global">
+                Global — réutilisable par tous les projets (apprentissage
+                transverse)
+              </option>
+              <option value="project">
+                Cloisonné par projet — anti-fuite (multi-service)
+              </option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Concerne les analyses fournisseurs, décisions et rapports indexés.
+              Le référentiel reste toujours global. Un changement s&apos;applique
+              aux prochaines indexations (réindexer pour l&apos;appliquer à
+              l&apos;existant).
+            </p>
           </div>
 
           <div className="flex justify-end pt-1">

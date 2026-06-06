@@ -36,6 +36,15 @@ export const EMBEDDING_MODES: EmbeddingMode[] = [
   "hash",
 ]
 
+/**
+ * Périmètre d'indexation des connaissances dérivées (analyses fournisseurs,
+ * décisions, rapports) :
+ *  - "global"  : réutilisable par TOUS les projets (apprentissage transverse).
+ *  - "project" : cloisonné au projet d'origine (anti-fuite multi-service).
+ */
+export type KnowledgeScope = "global" | "project"
+export const KNOWLEDGE_SCOPES: KnowledgeScope[] = ["global", "project"]
+
 export interface AppSettings {
   llmMode: LlmMode
   anthropicApiKey: string
@@ -51,6 +60,7 @@ export interface AppSettings {
   embeddingMode: EmbeddingMode
   ollamaEmbedModel: string
   openaiEmbedModel: string
+  knowledgeScope: KnowledgeScope
 }
 
 const SINGLETON = "singleton"
@@ -80,6 +90,8 @@ function envDefaults(): AppSettings {
     ollamaEmbedModel: process.env.OLLAMA_EMBED_MODEL ?? "nomic-embed-text",
     openaiEmbedModel:
       process.env.OPENAI_EMBED_MODEL ?? "text-embedding-3-small",
+    knowledgeScope:
+      process.env.KNOWLEDGE_SCOPE === "project" ? "project" : "global",
   }
 }
 

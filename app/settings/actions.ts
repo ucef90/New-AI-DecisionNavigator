@@ -9,6 +9,7 @@ import {
   type AppSettings,
   type LlmMode,
   type EmbeddingMode,
+  type KnowledgeScope,
 } from "@/lib/settings"
 
 /**
@@ -28,6 +29,9 @@ export async function updateLlmSettings(formData: FormData): Promise<void> {
     ? (rawEmbed as EmbeddingMode)
     : "auto"
 
+  const knowledgeScope: KnowledgeScope =
+    get("knowledgeScope") === "project" ? "project" : "global"
+
   const partial: Partial<AppSettings> = {
     llmMode,
     anthropicModel: get("anthropicModel"),
@@ -39,6 +43,7 @@ export async function updateLlmSettings(formData: FormData): Promise<void> {
     embeddingMode,
     ollamaEmbedModel: get("ollamaEmbedModel"),
     openaiEmbedModel: get("openaiEmbedModel"),
+    knowledgeScope,
   }
 
   // Clés sensibles : ne les écrire que si une nouvelle valeur est fournie.

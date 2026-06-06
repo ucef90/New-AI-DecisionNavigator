@@ -52,6 +52,7 @@ export default async function SettingsPage() {
     embeddingMode: settings.embeddingMode,
     ollamaEmbedModel: settings.ollamaEmbedModel,
     openaiEmbedModel: settings.openaiEmbedModel,
+    knowledgeScope: settings.knowledgeScope,
   }
 
   return (

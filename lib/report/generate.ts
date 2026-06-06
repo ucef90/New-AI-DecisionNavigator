@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
 import { complete } from "@/lib/llm"
+import { getAppSettings } from "@/lib/settings"
 import { retrieve, buildKnowledgeBlock, ingestText } from "@/lib/rag"
 import { buildReportPrompt } from "@/lib/prompts/report"
 
@@ -92,13 +93,15 @@ export async function generateReport(projectId: string): Promise<string | null> 
     data: { projectId, action: "REPORT_GENERATED" },
   })
 
-  // Auto-enrichissement : le rapport devient une connaissance réutilisable.
+  // Auto-enrichissement : le rapport devient une connaissance réutilisable
+  // (global ou cloisonné au projet selon le périmètre configuré).
+  const { knowledgeScope } = await getAppSettings()
   await ingestText({
     title: `Rapport — ${project.name}`,
     text: content,
     source: "REPORT",
     sourceRef: `report:${projectId}`,
-    projectId: null,
+    projectId: knowledgeScope === "project" ? projectId : null,
     tags: ["rapport", project.decision.verdict],
   })
 
