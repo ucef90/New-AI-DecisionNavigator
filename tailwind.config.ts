@@ -76,7 +76,9 @@ const config: Config = {
   		},
   		fontFamily: {
   			sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-  			mono: ['var(--font-mono)', 'ui-monospace', 'monospace']
+  			mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+  			display: ['var(--font-display)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+  			body: ['var(--font-body)', 'ui-sans-serif', 'system-ui', 'sans-serif']
   		}
   	}
   },

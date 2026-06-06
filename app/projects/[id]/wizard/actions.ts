@@ -4,7 +4,8 @@ import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 
 import { db } from "@/lib/db"
-import { getLLMProvider } from "@/lib/llm"
+import { complete } from "@/lib/llm"
+import { retrieve, buildKnowledgeBlock } from "@/lib/rag"
 import { generateDecision } from "@/lib/engine/generate"
 import { generateReport } from "@/lib/report/generate"
 import {
@@ -47,10 +48,19 @@ export async function reformulateQ1(
   const trimmed = text.trim()
   if (!trimmed) return null
 
-  const prompt = buildReformulationPrompt(trimmed)
+  // RAG : repères réglementaires / méthodo + motifs de décisions passés.
+  const knowledge = buildKnowledgeBlock(
+    await retrieve(trimmed, {
+      projectId,
+      k: 3,
+      sources: ["REFERENCE", "DECISION"],
+    }),
+  )
+
+  const prompt = buildReformulationPrompt(trimmed, knowledge)
   let result: ReformulationResult | null = null
   try {
-    const raw = await getLLMProvider().complete(prompt, {
+    const raw = await complete(prompt, {
       json: true,
       timeoutMs: 120_000,
     })

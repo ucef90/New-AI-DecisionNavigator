@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
-import { getLLMProvider, StubProvider } from "@/lib/llm"
+import { complete, StubProvider } from "@/lib/llm"
+import { ingestAttachment, retrieve, buildKnowledgeBlock } from "@/lib/rag"
 import {
   buildContextPrompt,
   parseContext,
@@ -24,16 +25,43 @@ export async function analyzeProjectContext(
     .map((a) => `[${a.name}]\n${a.text}`)
     .join("\n\n")
 
+  // Auto-enrichissement : indexe les documents du projet dans la base de
+  // connaissances (idempotent), pour qu'ils soient réutilisables ensuite.
+  for (const a of project.attachments) {
+    await ingestAttachment({
+      id: a.id,
+      name: a.name,
+      text: a.text,
+      projectId: project.id,
+    })
+  }
+
+  // RAG : récupère le contexte interne pertinent (référentiel + historique).
+  const knowledge = buildKnowledgeBlock(
+    await retrieve(
+      `${project.name}\n${project.description ?? ""}\n${documentsText}`.slice(
+        0,
+        2000,
+      ),
+      {
+        projectId: project.id,
+        k: 4,
+        sources: ["REFERENCE", "DECISION", "VENDOR"],
+      },
+    ),
+  )
+
   const prompt = buildContextPrompt({
     projectName: project.name,
     description: project.description ?? "",
     documentsText,
+    knowledge,
   })
 
   let result: ContextResult | null = null
   try {
     result = parseContext(
-      await getLLMProvider().complete(prompt, { json: true, timeoutMs: 15_000 }),
+      await complete(prompt, { json: true, timeoutMs: 15_000 }),
     )
   } catch (e) {
     console.error("[analyzeProjectContext] LLM error:", e)

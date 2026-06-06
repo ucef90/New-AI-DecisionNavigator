@@ -1,5 +1,6 @@
 import { db } from "@/lib/db"
-import { getLLMProvider } from "@/lib/llm"
+import { complete } from "@/lib/llm"
+import { retrieve, buildKnowledgeBlock, ingestText } from "@/lib/rag"
 import { buildReportPrompt } from "@/lib/prompts/report"
 
 const dateFmt = new Intl.DateTimeFormat("fr-FR", {
@@ -30,6 +31,18 @@ export async function generateReport(projectId: string): Promise<string | null> 
 
   const vendor = project.vendorAnalyses[0]
 
+  // RAG : ancre le rapport sur le référentiel réglementaire + l'historique
+  // (analyses fournisseurs et décisions passées) pertinents pour ce projet.
+  const q1 = project.answers.find((a) => a.questionKey === "Q1")
+  const needText =
+    q1?.llmReformulation ?? project.description ?? project.name
+  const knowledge = buildKnowledgeBlock(
+    await retrieve(
+      `${needText} ${project.decision.verdict} ${project.decision.techRecommendation ?? ""}`,
+      { projectId, k: 5, sources: ["REFERENCE", "VENDOR", "DECISION"] },
+    ),
+  )
+
   const prompt = buildReportPrompt({
     projectName: project.name,
     userName: project.user?.name ?? "—",
@@ -59,11 +72,12 @@ export async function generateReport(projectId: string): Promise<string | null> 
           recommendation: vendor.recommendation,
         })
       : undefined,
+    knowledge,
   })
 
   let content = ""
   try {
-    content = await getLLMProvider().complete(prompt)
+    content = await complete(prompt)
   } catch (e) {
     console.error("[generateReport] LLM error:", e)
     return null
@@ -76,6 +90,16 @@ export async function generateReport(projectId: string): Promise<string | null> 
   })
   await db.auditLog.create({
     data: { projectId, action: "REPORT_GENERATED" },
+  })
+
+  // Auto-enrichissement : le rapport devient une connaissance réutilisable.
+  await ingestText({
+    title: `Rapport — ${project.name}`,
+    text: content,
+    source: "REPORT",
+    sourceRef: `report:${projectId}`,
+    projectId: null,
+    tags: ["rapport", project.decision.verdict],
   })
 
   return content

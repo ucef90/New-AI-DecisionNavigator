@@ -1,6 +1,15 @@
+@import url("https://fonts.googleapis.com/css2?family=Fustat:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Variable animable pour le rayon du halo de révélation de l'orbe. */
+@property --r {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
 
 @layer base {
   :root {
@@ -35,6 +44,8 @@
     --chart-4: 200 85% 55%;
     --chart-5: 280 70% 60%;
     --radius: 0.5rem;
+    --font-display: "Fustat", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
     --sidebar: 0 0% 100%;
     --sidebar-foreground: 212 84% 11%;
     --sidebar-primary: 248 98% 61%;
@@ -86,6 +97,29 @@
     --sidebar-border: 223 26% 18%;
     --sidebar-ring: 248 98% 61%;
   }
+
+  /* Force le thème clair localement (page d'accueil "liquid glass"),
+     même quand <html> est en .dark. */
+  .light {
+    color-scheme: light;
+    --background: 0 0% 100%;
+    --foreground: 212 84% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 212 84% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 212 84% 11%;
+    --muted: 212 38% 96%;
+    --muted-foreground: 218 16% 47%;
+    --border: 212 38% 93%;
+    --input: 0 0% 100%;
+    --ring: 248 98% 61%;
+    --primary: 248 98% 61%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 212 38% 96%;
+    --secondary-foreground: 212 84% 11%;
+    --accent: 212 38% 95%;
+    --accent-foreground: 212 84% 11%;
+  }
 }
 
 @layer base {
@@ -103,5 +137,250 @@
     box-shadow:
       0 0 0 1px hsl(var(--primary) / 0.12),
       0 18px 60px -20px hsl(var(--primary) / 0.55);
+  }
+
+  /* ---- Liquid glass (page d'accueil, mode clair) ---- */
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-body {
+    font-family: var(--font-body);
+  }
+
+  /* Panneau verre fort : blur 50px, stroke + inner highlight */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(50px);
+    -webkit-backdrop-filter: blur(50px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow:
+      inset 0 4px 4px 0 rgba(255, 255, 255, 0.25),
+      0 24px 70px -28px rgba(49, 154, 255, 0.28);
+  }
+
+  /* Navbar "strong liquid glass" flottante (maquette) */
+  .nav-glass {
+    background: rgba(255, 255, 255, 0.3);
+    -webkit-backdrop-filter: blur(50px);
+    backdrop-filter: blur(50px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow:
+      inset 0 4px 4px 0 rgba(255, 255, 255, 0.25),
+      0 10px 34px -14px rgba(49, 154, 255, 0.3);
+  }
+
+  /* Variante sombre de la navbar flottante (même forme, habillage sombre) */
+  .nav-glass-dark {
+    background: rgba(15, 18, 30, 0.6);
+    -webkit-backdrop-filter: blur(50px);
+    backdrop-filter: blur(50px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+      0 12px 36px -16px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Pilule verre (badges, social proof) */
+  .glass-pill {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.7);
+  }
+
+  /* CTA "electric blue" verre */
+  .glass-cta {
+    background: rgba(0, 132, 255, 0.85);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    color: #fff;
+    border-radius: 16px;
+    box-shadow:
+      inset 0 4px 4px 0 rgba(255, 255, 255, 0.35),
+      0 16px 44px -12px rgba(0, 132, 255, 0.6);
+    transition:
+      transform 0.25s cubic-bezier(0.23, 1, 0.32, 1),
+      box-shadow 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .glass-cta:hover {
+    transform: scale(1.02);
+    box-shadow:
+      inset 0 4px 4px 0 rgba(255, 255, 255, 0.45),
+      0 22px 56px -12px rgba(0, 132, 255, 0.7);
+  }
+  .glass-cta:active {
+    transform: scale(0.99);
+  }
+
+  /* Orbe "electric brand blue" en pur CSS (remplace la vidéo future.co) */
+  .orb-glow {
+    background:
+      radial-gradient(
+        38% 38% at 38% 34%,
+        rgba(120, 200, 255, 0.95) 0%,
+        rgba(49, 154, 255, 0.85) 35%,
+        rgba(0, 110, 230, 0.65) 60%,
+        rgba(0, 80, 200, 0) 78%
+      ),
+      radial-gradient(
+        60% 60% at 62% 68%,
+        rgba(0, 132, 255, 0.85) 0%,
+        rgba(0, 90, 220, 0.45) 45%,
+        rgba(0, 90, 220, 0) 72%
+      );
+    filter: blur(8px) saturate(150%);
+    animation: orb-float 9s ease-in-out infinite;
+  }
+  @keyframes orb-float {
+    0%,
+    100% {
+      transform: translateY(0) scale(1.04);
+    }
+    50% {
+      transform: translateY(-22px) scale(1.1);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .orb-glow {
+      animation: none;
+    }
+  }
+
+  /* Orbe vidéo "glassy" (future.co), détourée en cercle + color-grade electric blue.
+     Pas de rectangle : un masque radial estompe les bords pour la laisser flotter. */
+  .orb-anim {
+    animation: orb-float 9s ease-in-out infinite;
+  }
+  .orb-video {
+    transform: scale(1.22);
+    filter: hue-rotate(-42deg) saturate(230%) brightness(0.88) contrast(1.32);
+    -webkit-mask-image: radial-gradient(
+      closest-side at 50% 50%,
+      #000 58%,
+      rgba(0, 0, 0, 0.5) 72%,
+      transparent 84%
+    );
+    mask-image: radial-gradient(
+      closest-side at 50% 50%,
+      #000 58%,
+      rgba(0, 0, 0, 0.5) 72%,
+      transparent 84%
+    );
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .orb-anim {
+      animation: none;
+    }
+  }
+
+  /* Effet magnétique : l'orbe se décale vers le curseur (--ox/--oy posés en JS) */
+  .orb-magnetic {
+    transform: translate(var(--ox, 0px), var(--oy, 0px));
+    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    will-change: transform;
+  }
+
+  /* Voile blanc translucide "glassy" au-dessus de l'orbe, percé par un halo
+     transparent qui suit le curseur (--mx/--my position, --r rayon au survol). */
+  .orb-veil {
+    background: rgba(255, 255, 255, 0.26);
+    -webkit-mask-image:
+      radial-gradient(
+        closest-side,
+        #000 56%,
+        rgba(0, 0, 0, 0.4) 72%,
+        transparent 86%
+      ),
+      radial-gradient(
+        circle var(--r, 0px) at var(--mx, 50%) var(--my, 50%),
+        transparent 0,
+        transparent 60%,
+        #000 100%
+      );
+    -webkit-mask-composite: source-in;
+    mask-image:
+      radial-gradient(
+        closest-side,
+        #000 56%,
+        rgba(0, 0, 0, 0.4) 72%,
+        transparent 86%
+      ),
+      radial-gradient(
+        circle var(--r, 0px) at var(--mx, 50%) var(--my, 50%),
+        transparent 0,
+        transparent 60%,
+        #000 100%
+      );
+    mask-composite: intersect;
+    transition: --r 0.3s ease;
+  }
+  .orb-stage:hover .orb-veil {
+    --r: 135px;
+  }
+
+  /* Anneau shimmer rotatif autour de l'orbe */
+  .orb-ring {
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(96, 177, 255, 0.45) 70deg,
+      rgba(0, 132, 255, 0.15) 140deg,
+      transparent 210deg,
+      transparent 360deg
+    );
+    animation: spin-slow 16s linear infinite;
+  }
+  @keyframes spin-slow {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Bandeau de logos défilant (feeling SaaS) */
+  .animate-marquee {
+    animation: marquee 32s linear infinite;
+  }
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Reflet animé sur le CTA */
+  .cta-sheen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      120deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.45) 50%,
+      transparent 70%
+    );
+    transform: translateX(-120%);
+    animation: sheen 4.5s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes sheen {
+    0%,
+    60% {
+      transform: translateX(-120%);
+    }
+    100% {
+      transform: translateX(120%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb-ring,
+    .animate-marquee,
+    .cta-sheen::after {
+      animation: none;
+    }
   }
 }

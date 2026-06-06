@@ -28,8 +28,10 @@ export function buildContextPrompt(input: {
   projectName: string
   description: string
   documentsText: string
+  knowledge?: string
 }): LLMPrompt {
   const hasDocs = input.documentsText.trim().length > 0
+  const knowledge = input.knowledge?.trim()
   return {
     system: SYSTEM,
     user: `PROJET : ${input.projectName}
@@ -40,7 +42,7 @@ ${
     ? `DOCUMENTS DE CONTEXTE :\n${truncate(input.documentsText)}`
     : "AUCUN DOCUMENT FOURNI — base-toi uniquement sur la description ci-dessus."
 }
-
+${knowledge ? `\n${knowledge}\n` : ""}
 Analyse et réponds avec ce JSON exact :
 {
   "summary": "3-4 phrases de synthèse du contexte et du besoin",

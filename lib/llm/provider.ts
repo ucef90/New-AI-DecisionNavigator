@@ -20,7 +20,12 @@ export interface LLMProvider {
   complete(prompt: LLMPrompt, opts?: LLMOptions): Promise<string>
 }
 
-export type LLMProviderName = "stub" | "openai" | "mistral" | "ollama"
+export type LLMProviderName =
+  | "stub"
+  | "openai"
+  | "mistral"
+  | "ollama"
+  | "anthropic"
 
 /** AbortSignal avec timeout (défaut 120 s). */
 export function timeoutSignal(ms = 120_000): AbortSignal {

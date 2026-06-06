@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client"
 import { db } from "@/lib/db"
 import type { AnswerMap } from "@/lib/questions"
 import { runEngine, type EngineResult } from "@/lib/engine"
+import { ingestDecisionForProject } from "@/lib/rag"
 
 /**
  * Exécute le moteur sur les réponses d'un projet et persiste la décision
@@ -61,6 +62,9 @@ export async function generateDecision(
       detail: { verdict: result.verdict, level: result.regulatoryLevel },
     },
   })
+
+  // Auto-enrichissement : la décision devient un motif réutilisable (global).
+  await ingestDecisionForProject(projectId)
 
   return result
 }

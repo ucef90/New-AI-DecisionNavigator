@@ -1,4 +1,4 @@
-import { Database, Cpu } from "@phosphor-icons/react/dist/ssr"
+import { Database } from "@phosphor-icons/react/dist/ssr"
 
 import { PageContainer, PageHeader } from "@/components/layout/page-container"
 import {
@@ -9,58 +9,58 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { getAppSettings } from "@/lib/settings"
+import {
+  LlmSettingsForm,
+  type LlmSettingsView,
+} from "@/components/settings/llm-settings-form"
 
 export const metadata = { title: "Paramètres" }
 
 const PROVIDER_LABELS: Record<string, string> = {
-  stub: "Stub (réponses déterministes, sans clé API)",
+  auto: "Automatique (selon disponibilité)",
+  stub: "Stub (déterministe)",
   openai: "OpenAI",
   mistral: "Mistral",
-  ollama: "Ollama (local / on-premise)",
+  ollama: "Ollama (local)",
+  anthropic: "Anthropic (Claude)",
 }
 
-export default function SettingsPage() {
-  const llmProvider = (process.env.LLM_PROVIDER ?? "stub").toLowerCase()
+export default async function SettingsPage() {
+  const settings = await getAppSettings()
   const dbProvider = (process.env.DATABASE_PROVIDER ?? "sqlite").toLowerCase()
 
-  const model =
-    {
-      openai: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
-      mistral: process.env.MISTRAL_MODEL ?? "mistral-small-latest",
-      ollama: process.env.OLLAMA_MODEL ?? "mistral",
-    }[llmProvider] ?? "—"
+  // Libellé du provider effectif sans sonde réseau (évite de bloquer le rendu).
+  const active =
+    settings.llmMode === "auto" ? "auto" : settings.llmMode
+
+  const view: LlmSettingsView = {
+    llmMode: settings.llmMode,
+    anthropicModel: settings.anthropicModel,
+    ollamaBaseUrl: settings.ollamaBaseUrl,
+    ollamaModel: settings.ollamaModel,
+    openaiModel: settings.openaiModel,
+    openaiBaseUrl: settings.openaiBaseUrl,
+    mistralModel: settings.mistralModel,
+    // On n'expose jamais les clés au client, seulement leur présence.
+    hasAnthropicKey: !!settings.anthropicApiKey,
+    hasOpenaiKey: !!settings.openaiApiKey,
+    hasMistralKey: !!settings.mistralApiKey,
+    activeProvider: PROVIDER_LABELS[active] ?? active,
+    embeddingMode: settings.embeddingMode,
+    ollamaEmbedModel: settings.ollamaEmbedModel,
+    openaiEmbedModel: settings.openaiEmbedModel,
+  }
 
   return (
     <PageContainer className="max-w-3xl">
       <PageHeader
         title="Paramètres"
-        description="Configuration de l'application. L'édition depuis l'interface arrivera dans une prochaine étape — pour l'instant, ces valeurs proviennent des variables d'environnement."
+        description="Configuration de l'application. Le choix du fournisseur LLM est éditable ici et persisté localement."
       />
 
       <div className="grid gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Cpu className="size-4 text-muted-foreground" aria-hidden />
-              Fournisseur LLM
-            </CardTitle>
-            <CardDescription>
-              Défini par la variable <code>LLM_PROVIDER</code>.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Provider actif</span>
-              <Badge variant="secondary">
-                {PROVIDER_LABELS[llmProvider] ?? llmProvider}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Modèle</span>
-              <span className="font-mono text-xs">{model}</span>
-            </div>
-          </CardContent>
-        </Card>
+        <LlmSettingsForm view={view} />
 
         <Card>
           <CardHeader>
@@ -69,7 +69,8 @@ export default function SettingsPage() {
               Base de données
             </CardTitle>
             <CardDescription>
-              Définie par <code>DATABASE_PROVIDER</code> / <code>DATABASE_URL</code>.
+              Définie par <code>DATABASE_PROVIDER</code> /{" "}
+              <code>DATABASE_URL</code>.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-sm">

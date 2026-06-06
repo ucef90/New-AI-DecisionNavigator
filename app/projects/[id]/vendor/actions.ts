@@ -5,7 +5,12 @@ import type { Prisma } from "@prisma/client"
 import { PDFParse } from "pdf-parse"
 
 import { db } from "@/lib/db"
-import { getLLMProvider, StubProvider } from "@/lib/llm"
+import { complete, StubProvider } from "@/lib/llm"
+import {
+  retrieve,
+  buildKnowledgeBlock,
+  ingestVendorAnalysis,
+} from "@/lib/rag"
 import {
   buildVendorPrompt,
   parseVendor,
@@ -76,16 +81,27 @@ export async function analyzeVendor(
     ? (q7!.value as string[]).map((v) => DATA_LABELS[v] ?? v).join(", ")
     : "non précisé"
 
+  const problem = q1?.llmReformulation ?? project.description ?? project.name
+
+  // RAG : référentiel réglementaire + analyses fournisseurs passées (global).
+  const knowledge = buildKnowledgeBlock(
+    await retrieve(`${problem}\n${content}`.slice(0, 2000), {
+      projectId,
+      k: 4,
+      sources: ["REFERENCE", "VENDOR"],
+    }),
+  )
+
   const prompt = buildVendorPrompt(
     {
-      problem:
-        q1?.llmReformulation ?? project.description ?? project.name,
+      problem,
       verdict: project.decision?.verdict ?? "non décidé",
       tech: project.decision?.techRecommendation ?? "non défini",
       dataTypes,
       regLevel: project.decision?.regulatoryLevel ?? "non évalué",
     },
     content,
+    knowledge,
   )
 
   // 1) Tentative avec le provider configuré (mode JSON + timeout).
@@ -93,7 +109,7 @@ export async function analyzeVendor(
   try {
     // Fenêtre courte : si le LLM local ne répond pas vite, on bascule sur
     // l'analyse déterministe (basée sur le document) sans faire attendre l'agent.
-    const raw = await getLLMProvider().complete(prompt, {
+    const raw = await complete(prompt, {
       json: true,
       timeoutMs: 12_000,
     })
@@ -112,7 +128,7 @@ export async function analyzeVendor(
   }
   if (!result) return { error: "Analyse indisponible. Réessayez." }
 
-  await db.vendorAnalysis.create({
+  const created = await db.vendorAnalysis.create({
     data: {
       projectId,
       documentName,
@@ -134,6 +150,9 @@ export async function analyzeVendor(
   await db.auditLog.create({
     data: { projectId, action: "VENDOR_UPLOADED", detail: { documentName } },
   })
+
+  // Auto-enrichissement : cette analyse devient une connaissance réutilisable.
+  await ingestVendorAnalysis(created.id)
 
   revalidatePath(`/projects/${projectId}/vendor`)
   return { ok: true }

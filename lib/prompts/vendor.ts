@@ -58,7 +58,9 @@ function truncate(text: string, max = 4000): string {
 export function buildVendorPrompt(
   profile: VendorProfile,
   documentContent: string,
+  knowledge?: string,
 ): LLMPrompt {
+  const kb = knowledge?.trim()
   return {
     system: SYSTEM,
     user: `PROFIL DU PROJET :
@@ -70,7 +72,7 @@ export function buildVendorPrompt(
 
 DOCUMENT FOURNISSEUR :
 ${truncate(documentContent)}
-
+${kb ? `\n${kb}\n` : ""}
 Analyse ce document et réponds avec ce JSON exact :
 {
   "vendorName": "nom du fournisseur ou Non identifié",

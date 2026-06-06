@@ -404,23 +404,23 @@ function AnimateIcon({
 
   const content = asChild ? (
     <Slot
-      ref={inViewRef as React.Ref<HTMLElement>}
+      ref={inViewRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
-      {...(props as Omit<typeof props, "ref">)}
+      {...props}
     >
       {children}
     </Slot>
   ) : (
     <motion.span
-      ref={inViewRef as React.Ref<HTMLElement>}
+      ref={inViewRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
-      {...(props as Omit<typeof props, "ref">)}
+      {...props}
     >
       {children}
     </motion.span>
@@ -529,7 +529,7 @@ function IconWrapper<T extends string>({
                 (animationProp ?? parentAnimation) === 'path-loop') &&
                 pathClassName,
             )}
-            {...(props as Omit<typeof props, "ref">)}
+            {...props}
           />
         </AnimateIcon>
       );
@@ -560,7 +560,7 @@ function IconWrapper<T extends string>({
             (animationToUse === 'path' || animationToUse === 'path-loop') &&
               pathClassName,
           )}
-          {...(props as Omit<typeof props, "ref">)}
+          {...props}
         />
       </AnimateIconContext.Provider>
     );
@@ -595,7 +595,7 @@ function IconWrapper<T extends string>({
             (animationProp === 'path' || animationProp === 'path-loop') &&
               pathClassName,
           )}
-          {...(props as Omit<typeof props, "ref">)}
+          {...props}
         />
       </AnimateIcon>
     );
@@ -609,7 +609,7 @@ function IconWrapper<T extends string>({
         (animationProp === 'path' || animationProp === 'path-loop') &&
           pathClassName,
       )}
-      {...(props as Omit<typeof props, "ref">)}
+      {...props}
     />
   );
 }

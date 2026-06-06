@@ -10,6 +10,7 @@ export interface ReportInput {
   decisionJson: string
   alertsJson: string
   vendorJson?: string
+  knowledge?: string
 }
 
 const SYSTEM = `Tu génères un rapport de pré-cadrage IA d'une page A4 pour un chef de projet de collectivité publique.
@@ -23,7 +24,7 @@ export function buildReportPrompt(input: ReportInput): LLMPrompt {
 DÉCISION : ${input.decisionJson}
 ALERTES RÉGLEMENTAIRES : ${input.alertsJson}
 ANALYSE FOURNISSEUR (si présente) : ${input.vendorJson ?? "aucune"}
-
+${input.knowledge?.trim() ? `\n${input.knowledge.trim()}\n` : ""}
 Génère un rapport markdown avec exactement ces sections :
 
 # Rapport de pré-cadrage IA — ${input.projectName}

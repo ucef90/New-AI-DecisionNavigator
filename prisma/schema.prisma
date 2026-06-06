@@ -178,6 +178,61 @@ enum ReportFormat {
   MARKDOWN
 }
 
+/// Réglages applicatifs persistés (ligne unique "singleton"), dont le choix LLM.
+model AppSetting {
+  id        String   @id @default("singleton")
+  data      Json
+  updatedAt DateTime @updatedAt @default(now())
+}
+
+/// Base de connaissances (RAG) — un document = une source indexée.
+model KnowledgeDocument {
+  id          String           @id @default(uuid())
+  title       String
+  source      KnowledgeSource  @default(MANUAL)
+  sourceRef   String? // id d'origine (attachmentId, vendorAnalysisId, projectId, slug…)
+  projectId   String? // null = connaissance GLOBALE (réutilisable par tous les projets)
+  uri         String?
+  tags        Json? // ["RGPD", "IA Act"]
+  contentHash String // dédup / détection de changement
+  chunkCount  Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  chunks      KnowledgeChunk[]
+
+  @@index([source])
+  @@index([projectId])
+  @@index([source, sourceRef])
+}
+
+/// Fragment de document + son vecteur d'embedding (stocké en JSON).
+model KnowledgeChunk {
+  id         String            @id @default(uuid())
+  documentId String
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  idx        Int
+  content    String
+  embedding  Json // number[] sérialisé
+  model      String // tag du modèle d'embedding (ex: "ollama:nomic-embed-text")
+  dim        Int
+  source     KnowledgeSource // dénormalisé pour filtrer vite à la récupération
+  projectId  String?
+  createdAt  DateTime          @default(now())
+
+  @@index([model])
+  @@index([projectId])
+}
+
+enum KnowledgeSource {
+  REFERENCE // corpus de référence (réglementaire, méthodo)
+  ATTACHMENT // document joint à un projet
+  VENDOR // analyse de réponse fournisseur
+  DECISION // décision / verdict d'un projet
+  REPORT // rapport généré
+  ANSWER // réponses au questionnaire
+  MANUAL // saisi à la main
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   projectId String?

@@ -20,12 +20,16 @@ Tes règles absolues :
 - Sois concis : 2 phrases maximum par champ texte.
 - Si le besoin est déjà bien formulé, garde-le tel quel.`
 
-export function buildReformulationPrompt(q1Value: string): LLMPrompt {
+export function buildReformulationPrompt(
+  q1Value: string,
+  knowledge?: string,
+): LLMPrompt {
+  const kb = knowledge?.trim()
   return {
     system: SYSTEM,
     user: `Le chef de projet a décrit son besoin ainsi :
 "${q1Value}"
-
+${kb ? `\n${kb}\n` : ""}
 Analyse cette description et réponds avec ce JSON exact :
 {
   "problemReformulated": "Le vrai problème en 1 phrase claire, orienté résultat",
