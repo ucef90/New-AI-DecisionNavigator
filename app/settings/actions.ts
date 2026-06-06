@@ -12,11 +12,20 @@ import {
   type KnowledgeScope,
 } from "@/lib/settings"
 
+export interface SettingsState {
+  ok?: boolean
+  error?: string
+}
+
 /**
  * Enregistre le choix du fournisseur LLM depuis la page Paramètres.
  * Les clés API laissées vides ne sont PAS écrasées (on conserve l'existante).
+ * Renvoie un état (pour afficher une confirmation côté formulaire).
  */
-export async function updateLlmSettings(formData: FormData): Promise<void> {
+export async function updateLlmSettings(
+  _prev: SettingsState,
+  formData: FormData,
+): Promise<SettingsState> {
   const get = (k: string) => (formData.get(k)?.toString() ?? "").trim()
 
   const rawMode = get("llmMode")
@@ -60,6 +69,12 @@ export async function updateLlmSettings(formData: FormData): Promise<void> {
   const mistralApiKey = get("mistralApiKey")
   if (mistralApiKey) partial.mistralApiKey = mistralApiKey
 
-  await updateAppSettings(partial)
-  revalidatePath("/settings")
+  try {
+    await updateAppSettings(partial)
+    revalidatePath("/settings")
+    return { ok: true }
+  } catch (e) {
+    console.error("[updateLlmSettings] échec:", e)
+    return { error: "Échec de l'enregistrement. Réessayez." }
+  }
 }

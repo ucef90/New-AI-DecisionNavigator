@@ -1,11 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Cpu } from "@phosphor-icons/react/dist/ssr"
+import { useFormState, useFormStatus } from "react-dom"
+import { Cpu, CheckCircle } from "@phosphor-icons/react/dist/ssr"
 
 import { cn } from "@/lib/utils"
 import type { LlmMode, EmbeddingMode, KnowledgeScope } from "@/lib/settings"
-import { updateLlmSettings } from "@/app/settings/actions"
+import { updateLlmSettings, type SettingsState } from "@/app/settings/actions"
 import {
   Card,
   CardContent,
@@ -68,6 +69,7 @@ const inputCls =
 export function LlmSettingsForm({ view }: { view: LlmSettingsView }) {
   const [mode, setMode] = useState<LlmMode>(view.llmMode)
   const [embedMode, setEmbedMode] = useState<EmbeddingMode>(view.embeddingMode)
+  const [state, formAction] = useFormState(updateLlmSettings, {} as SettingsState)
 
   const visible = (...modes: LlmMode[]) =>
     cn("grid gap-4 sm:grid-cols-2", !modes.includes(mode) && "hidden")
@@ -89,7 +91,7 @@ export function LlmSettingsForm({ view }: { view: LlmSettingsView }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={updateLlmSettings} className="space-y-5">
+        <form action={formAction} className="space-y-5">
           {/* Mode */}
           <div className="space-y-2">
             <Label htmlFor="llmMode">Mode</Label>
@@ -263,12 +265,32 @@ export function LlmSettingsForm({ view }: { view: LlmSettingsView }) {
             </p>
           </div>
 
-          <div className="flex justify-end pt-1">
-            <Button type="submit">Enregistrer</Button>
+          <div className="flex items-center justify-end gap-3 pt-1">
+            {state.ok && (
+              <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                <CheckCircle className="size-4" weight="fill" aria-hidden />
+                Enregistré
+              </span>
+            )}
+            {state.error && (
+              <span className="text-sm font-medium text-destructive">
+                {state.error}
+              </span>
+            )}
+            <SubmitButton />
           </div>
         </form>
       </CardContent>
     </Card>
+  )
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending ? "Enregistrement…" : "Enregistrer"}
+    </Button>
   )
 }
 
