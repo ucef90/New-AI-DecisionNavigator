@@ -49,3 +49,6 @@ next-env.d.ts
 # Logos de marque (droits tiers) : fournis localement, non versionnés
 public/logos/*
 !public/logos/README.md
+
+# Artefacts Playwright MCP
+.playwright-mcp/
