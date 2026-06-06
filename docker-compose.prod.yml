@@ -1,0 +1,58 @@
+# Déploiement PRODUCTION (VPS) — app + Ollama + Caddy (HTTPS auto).
+# Base SQLite sur volume (simple, robuste pour un VPS mono-site).
+# Les valeurs sensibles viennent du fichier .env (voir .env.prod.example).
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# L'app n'est PAS exposée directement : seul Caddy publie 80/443.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_PROVIDER=sqlite
+      - DATABASE_URL=file:/app/data/prod.db
+      - AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET requis}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@ia-decision.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD requis}
+      - LLM_PROVIDER=${LLM_PROVIDER:-auto}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-opus-4-8}
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:3b}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-auto}
+      - OLLAMA_EMBED_MODEL=${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-AI Pré-Cadrage}
+    volumes:
+      - app_data:/app/data
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - ACME_EMAIL=${ACME_EMAIL:-admin@ia-decision.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  app_data:
+  ollama_data:
+  caddy_data:
+  caddy_config:

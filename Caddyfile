@@ -1,0 +1,16 @@
+# Reverse proxy + HTTPS automatique (Let's Encrypt) pour AI Pré-Cadrage.
+# www → apex (canonique), apex → application.
+
+{
+	# Email utilisé pour les certificats Let's Encrypt (recommandé).
+	email {$ACME_EMAIL}
+}
+
+www.ia-decision.com {
+	redir https://ia-decision.com{uri} permanent
+}
+
+ia-decision.com {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

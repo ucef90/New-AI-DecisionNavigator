@@ -18,8 +18,12 @@ export interface LoginState {
 
 /**
  * Connexion par email + mot de passe.
- * Amorçage on-premise : si l'utilisateur n'a pas encore de mot de passe, le
- * premier login avec ADMIN_PASSWORD (défaut "admin") le définit.
+ *
+ * Amorçage du 1er administrateur (utile en production sur base vierge) :
+ *  - si le compte ADMIN_EMAIL n'existe pas, il est CRÉÉ au premier login avec
+ *    ADMIN_PASSWORD ;
+ *  - s'il existe mais sans mot de passe, ADMIN_PASSWORD le définit.
+ * ADMIN_EMAIL défaut "chef.projet@cd93.fr", ADMIN_PASSWORD défaut "admin".
  */
 export async function login(
   _prev: LoginState,
@@ -29,24 +33,41 @@ export async function login(
   const password = formData.get("password")?.toString() ?? ""
   if (!email || !password) return { error: "Email et mot de passe requis." }
 
-  const user = await db.user.findUnique({ where: { email } })
-  if (!user) return { error: "Identifiants invalides." }
+  const adminEmail = (
+    process.env.ADMIN_EMAIL ?? "chef.projet@cd93.fr"
+  ).toLowerCase()
+  const bootstrapPwd = process.env.ADMIN_PASSWORD ?? "admin"
 
-  let ok = false
-  if (user.passwordHash) {
-    ok = verifyPassword(password, user.passwordHash)
+  let user = await db.user.findUnique({ where: { email } })
+
+  if (!user) {
+    // Aucun compte : amorçage autorisé uniquement pour l'admin configuré.
+    if (email === adminEmail && password === bootstrapPwd) {
+      user = await db.user.create({
+        data: {
+          email,
+          name: "Administrateur",
+          role: "ADMIN",
+          passwordHash: hashPassword(password),
+        },
+      })
+    } else {
+      return { error: "Identifiants invalides." }
+    }
   } else {
-    // Amorçage : aucun mot de passe encore défini pour ce compte.
-    const bootstrap = process.env.ADMIN_PASSWORD ?? "admin"
-    if (password === bootstrap) {
+    let ok = false
+    if (user.passwordHash) {
+      ok = verifyPassword(password, user.passwordHash)
+    } else if (password === bootstrapPwd) {
+      // Compte préexistant sans mot de passe → on le définit.
       await db.user.update({
         where: { id: user.id },
         data: { passwordHash: hashPassword(password) },
       })
       ok = true
     }
+    if (!ok) return { error: "Identifiants invalides." }
   }
-  if (!ok) return { error: "Identifiants invalides." }
 
   const token = signSession({
     uid: user.id,
