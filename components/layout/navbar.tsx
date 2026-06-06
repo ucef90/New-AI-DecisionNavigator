@@ -12,6 +12,7 @@ import {
   GearSix,
   ArrowRight,
   BookOpenText,
+  SignIn,
 } from "@phosphor-icons/react/dist/ssr"
 
 import { cn } from "@/lib/utils"
@@ -98,51 +99,66 @@ export function Navbar({ authed = false }: { authed?: boolean }) {
             aria-hidden
           />
 
-          <nav className="flex items-center gap-0.5 text-sm">
-            {links.map(({ href, label, icon: Icon }) => {
-              const active = isActive(href)
-              const isCta = href === "/projects/new"
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-medium transition-colors",
-                    isCta
-                      ? "bg-[#0084FF] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] hover:bg-[#0a78e0]"
-                      : "text-foreground/70 hover:bg-foreground/[0.08] hover:text-foreground",
-                    active && !isCta && "bg-foreground/[0.1] text-foreground",
-                  )}
-                >
-                  {isCta ? (
-                    <>
-                      <span className="hidden sm:inline">{label}</span>
-                      <Plus className="size-[18px] sm:hidden" aria-hidden />
-                      <ArrowRight
-                        className="hidden size-3.5 sm:inline"
-                        weight="bold"
-                        aria-hidden
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <Icon className="size-[18px]" aria-hidden />
-                      <span className="hidden sm:inline">{label}</span>
-                    </>
-                  )}
-                </Link>
-              )
-            })}
-          </nav>
+          {authed ? (
+            <>
+              <nav className="flex items-center gap-0.5 text-sm">
+                {links.map(({ href, label, icon: Icon }) => {
+                  const active = isActive(href)
+                  const isCta = href === "/projects/new"
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-medium transition-colors",
+                        isCta
+                          ? "bg-[#0084FF] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] hover:bg-[#0a78e0]"
+                          : "text-foreground/70 hover:bg-foreground/[0.08] hover:text-foreground",
+                        active && !isCta && "bg-foreground/[0.1] text-foreground",
+                      )}
+                    >
+                      {isCta ? (
+                        <>
+                          <span className="hidden sm:inline">{label}</span>
+                          <Plus className="size-[18px] sm:hidden" aria-hidden />
+                          <ArrowRight
+                            className="hidden size-3.5 sm:inline"
+                            weight="bold"
+                            aria-hidden
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <Icon className="size-[18px]" aria-hidden />
+                          <span className="hidden sm:inline">{label}</span>
+                        </>
+                      )}
+                    </Link>
+                  )
+                })}
+              </nav>
 
-          <span
-            className="mx-1 hidden h-5 w-px bg-foreground/15 sm:block"
-            aria-hidden
-          />
+              <span
+                className="mx-1 hidden h-5 w-px bg-foreground/15 sm:block"
+                aria-hidden
+              />
 
-          <ThemeToggle />
-          {authed ? <SignOutButton /> : null}
+              <ThemeToggle />
+              <SignOutButton />
+            </>
+          ) : (
+            <>
+              <ThemeToggle />
+              <Link
+                href="/auth/signin"
+                className="flex items-center gap-1.5 rounded-xl bg-[#0084FF] px-3 py-1.5 text-sm font-medium text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] transition-colors hover:bg-[#0a78e0]"
+              >
+                <SignIn className="size-[18px]" aria-hidden />
+                Connexion
+              </Link>
+            </>
+          )}
         </div>
       </header>
     )
@@ -169,29 +185,41 @@ export function Navbar({ authed = false }: { authed?: boolean }) {
           <span className="hidden text-[15px] sm:inline">{APP_NAME}</span>
         </Link>
 
-        <nav className="flex items-center gap-0.5 text-sm">
-          {links.map(({ href, label, icon: Icon }) => {
-            const active = isActive(href)
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                  active && "bg-accent text-accent-foreground hover:bg-accent",
-                )}
-              >
-                <Icon className="size-[18px]" aria-hidden />
-                <span className="hidden sm:inline">{label}</span>
-              </Link>
-            )
-          })}
-        </nav>
+        {authed ? (
+          <nav className="flex items-center gap-0.5 text-sm">
+            {links.map(({ href, label, icon: Icon }) => {
+              const active = isActive(href)
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                    active && "bg-accent text-accent-foreground hover:bg-accent",
+                  )}
+                >
+                  <Icon className="size-[18px]" aria-hidden />
+                  <span className="hidden sm:inline">{label}</span>
+                </Link>
+              )
+            })}
+          </nav>
+        ) : null}
 
         <div className="ml-auto flex items-center gap-1">
           <ThemeToggle />
-          {authed ? <SignOutButton /> : null}
+          {authed ? (
+            <SignOutButton />
+          ) : (
+            <Link
+              href="/auth/signin"
+              className="flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <SignIn className="size-[18px]" aria-hidden />
+              <span className="hidden sm:inline">Connexion</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>
