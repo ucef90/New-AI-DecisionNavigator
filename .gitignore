@@ -45,3 +45,7 @@ next-env.d.ts
 
 # Claude Code local config
 .claude/
+
+# Logos de marque (droits tiers) : fournis localement, non versionnés
+public/logos/*
+!public/logos/README.md
