@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      # prisma generate ne se connecte pas à la base ; valeur factice suffisante.
+      DATABASE_URL: "file:./ci.db"
+      DATABASE_PROVIDER: sqlite
+      AUTH_SECRET: "ci-secret-not-used-at-runtime"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (decision engine)
+        run: npm test

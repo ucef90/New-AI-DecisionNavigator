@@ -120,6 +120,7 @@ export async function analyzeVendor(
 
   // 2) Repli déterministe si l'IA est indisponible ou illisible (jamais d'échec bloquant).
   if (!result) {
+    console.warn("[analyzeVendor] repli déterministe (stub) utilisé.")
     try {
       result = parseVendor(await new StubProvider().complete(prompt))
     } catch {

@@ -67,6 +67,7 @@ export async function analyzeProjectContext(
     console.error("[analyzeProjectContext] LLM error:", e)
   }
   if (!result) {
+    console.warn("[analyzeProjectContext] repli déterministe (stub) utilisé.")
     try {
       result = parseContext(await new StubProvider().complete(prompt))
     } catch {
