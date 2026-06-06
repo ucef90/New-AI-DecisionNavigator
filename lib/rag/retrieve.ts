@@ -41,43 +41,68 @@ export async function retrieve(
     const [qv] = await embedder.embed([q])
     if (!qv || qv.length === 0) return []
 
-    const rows = await db.knowledgeChunk.findMany({
-      where: {
-        model: embedder.modelTag,
-        OR: [{ projectId: null }, { projectId: projectId ?? undefined }],
-        ...(sources && sources.length ? { source: { in: sources } } : {}),
-      },
-      select: {
-        content: true,
-        embedding: true,
-        source: true,
-        documentId: true,
-        document: { select: { title: true } },
-      },
-      take: maxCandidates,
-    })
+    const where = {
+      model: embedder.modelTag,
+      OR: [{ projectId: null }, { projectId: projectId ?? undefined }],
+      ...(sources && sources.length ? { source: { in: sources } } : {}),
+    }
 
-    const scored = rows
+    // Phase 1 — scoring : on ne charge QUE les vecteurs (pas le contenu) pour
+    // limiter la mémoire. On lit maxCandidates+1 pour détecter une troncature.
+    const candidates = await db.knowledgeChunk.findMany({
+      where,
+      select: { id: true, embedding: true, source: true, documentId: true },
+      take: maxCandidates + 1,
+    })
+    if (candidates.length > maxCandidates) {
+      console.warn(
+        `[rag.retrieve] corpus > ${maxCandidates} fragments : recherche tronquée (force brute). Passer à pgvector — voir docs/RAG-SCALING.md.`,
+      )
+    }
+
+    const scored = candidates
+      .slice(0, maxCandidates)
       .map((r) => ({
+        id: r.id,
         documentId: r.documentId,
-        title: r.document?.title ?? "—",
         source: r.source as KnowledgeSource,
-        content: r.content,
         score: cosine(qv, (r.embedding as number[]) ?? []),
       }))
       .filter((r) => r.score >= minScore)
       .sort((a, b) => b.score - a.score)
 
-    // Déduplique par document (un même doc ne sature pas le top-k).
+    // Déduplique par document, garde le top-k.
     const seen = new Set<string>()
-    const out: RetrievedChunk[] = []
+    const picked: typeof scored = []
     for (const r of scored) {
       if (seen.has(r.documentId)) continue
       seen.add(r.documentId)
-      out.push(r)
-      if (out.length >= k) break
+      picked.push(r)
+      if (picked.length >= k) break
     }
-    return out
+    if (!picked.length) return []
+
+    // Phase 2 — on ne charge le contenu + titre que pour le top-k retenu.
+    const details = await db.knowledgeChunk.findMany({
+      where: { id: { in: picked.map((p) => p.id) } },
+      select: {
+        id: true,
+        content: true,
+        document: { select: { title: true } },
+      },
+    })
+    const byId = new Map(details.map((d) => [d.id, d]))
+
+    return picked.map((p) => {
+      const d = byId.get(p.id)
+      return {
+        documentId: p.documentId,
+        title: d?.document?.title ?? "—",
+        source: p.source,
+        content: d?.content ?? "",
+        score: p.score,
+      }
+    })
   } catch (e) {
     console.error("[rag.retrieve] échec:", e)
     return []
