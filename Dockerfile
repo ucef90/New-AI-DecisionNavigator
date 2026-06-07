@@ -27,8 +27,10 @@ COPY --from=build /app/public ./public
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/next.config.mjs ./next.config.mjs
 COPY --from=build /app/prisma ./prisma
-# tsconfig.json : nécessaire pour que `prisma db seed` (tsx) résolve l'alias @/*
+# tsconfig.json + sources lib/ : nécessaires pour que `prisma db seed` (tsx)
+# résolve l'alias @/* et trouve le code importé (moteur, rapport, RAG…).
 COPY --from=build /app/tsconfig.json ./tsconfig.json
+COPY --from=build /app/lib ./lib
 
 EXPOSE 3000
 # Applique le schéma puis démarre. `db push` est agnostique du provider
