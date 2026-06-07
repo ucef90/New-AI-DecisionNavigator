@@ -1,10 +1,11 @@
-# Déploiement PRODUCTION (VPS) — app + Ollama + Caddy (HTTPS auto).
-# Base SQLite sur volume (simple, robuste pour un VPS mono-site).
-# Les valeurs sensibles viennent du fichier .env (voir .env.prod.example).
+# Déploiement PRODUCTION (VPS) — app AI Pré-Cadrage + Ollama.
+# Le HTTPS et le routage par domaine sont assurés par le reverse proxy PARTAGÉ
+# (voir deploy/proxy/). Cette app n'expose AUCUN port : elle est jointe par le
+# proxy via le réseau Docker EXTERNE "web". Base SQLite sur volume.
 #
-#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
 #
-# L'app n'est PAS exposée directement : seul Caddy publie 80/443.
+# (--remove-orphans retire l'ancien conteneur Caddy intégré lors de la bascule.)
 
 services:
   app:
@@ -29,30 +30,23 @@ services:
       - app_data:/app/data
     depends_on:
       - ollama
+    networks:
+      - default # pour joindre Ollama (réseau privé interne)
+      - web # pour être joint par le reverse proxy partagé
 
   ollama:
     image: ollama/ollama
     restart: unless-stopped
     volumes:
       - ollama_data:/root/.ollama
+    networks:
+      - default
 
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      - ACME_EMAIL=${ACME_EMAIL:-admin@ia-decision.com}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - app
+networks:
+  web:
+    external: true
+  default: {}
 
 volumes:
   app_data:
   ollama_data:
-  caddy_data:
-  caddy_config:

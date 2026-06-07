@@ -1,0 +1,28 @@
+# Reverse proxy partagé — HTTPS automatique (Let's Encrypt) + routage par domaine.
+# Chaque site est joint par le nom de son service sur le réseau Docker "web".
+# Ajouter un nouveau site = ajouter un bloc ici, puis recharger le proxy.
+
+{
+	# Email pour les certificats Let's Encrypt.
+	email {$ACME_EMAIL}
+}
+
+# ── ia-decision.com — AI Pré-Cadrage (service "app", projet New-AI-DecisionNavigator) ──
+www.ia-decision.com {
+	redir https://ia-decision.com{uri} permanent
+}
+
+ia-decision.com {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+# ── beyond-expertise.com — Site Beyond Expertise 2026 (service "beyond-site") ──
+www.beyond-expertise.com {
+	redir https://beyond-expertise.com{uri} permanent
+}
+
+beyond-expertise.com {
+	encode zstd gzip
+	reverse_proxy beyond-site:3000
+}

@@ -1,0 +1,31 @@
+# Reverse proxy PARTAGÉ du VPS — point d'entrée HTTPS unique (ports 80/443).
+# Stack INDÉPENDANTE des sites : elle ne fait qu'aiguiller le trafic vers le bon
+# conteneur selon le domaine, via le réseau Docker externe "web".
+# Les sites (ia-decision.com, beyond-expertise.com…) restent totalement isolés.
+#
+#   cd deploy/proxy && cp .env.example .env && nano .env   # ACME_EMAIL
+#   docker compose up -d
+#
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - ACME_EMAIL=${ACME_EMAIL:-admin@ia-decision.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - web
+
+networks:
+  web:
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:
