@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
+import { ChatWidget } from "@/components/chat/chat-widget"
 import { Toaster } from "@/components/ui/sonner"
 
 const dmSans = DM_Sans({
@@ -52,6 +53,7 @@ export default async function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+          {user ? <ChatWidget /> : null}
           <Toaster richColors position="top-center" />
         </ThemeProvider>
       </body>
