@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 
+import { requireRole } from "@/lib/auth"
 import {
   updateAppSettings,
   LLM_MODES,
@@ -26,6 +27,10 @@ export async function updateLlmSettings(
   _prev: SettingsState,
   formData: FormData,
 ): Promise<SettingsState> {
+  // Sécurité : réservé aux administrateurs (la clé API ne doit jamais être
+  // modifiable sans authentification ADMIN, même via un appel direct).
+  await requireRole("ADMIN")
+
   const get = (k: string) => (formData.get(k)?.toString() ?? "").trim()
 
   const rawMode = get("llmMode")
