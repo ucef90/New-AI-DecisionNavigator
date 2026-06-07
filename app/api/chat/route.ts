@@ -3,7 +3,8 @@ import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { getCurrentUser } from "@/lib/auth"
 import { getAppSettings } from "@/lib/settings"
-import { complete, StubProvider, type LLMPrompt } from "@/lib/llm"
+import { type LLMPrompt } from "@/lib/llm"
+import { AnthropicProvider } from "@/lib/llm/providers/anthropic"
 import { OllamaProvider } from "@/lib/llm/providers/ollama"
 import { retrieve, buildKnowledgeBlock } from "@/lib/rag"
 import { buildChatPrompt, type ChatMessage } from "@/lib/prompts/chat"
@@ -12,29 +13,44 @@ export const dynamic = "force-dynamic"
 
 const TIMEOUT_MS = 60_000
 
+const UNAVAILABLE =
+  "⚠️ L'assistant n'est pas disponible pour le moment : aucun moteur d'IA n'a répondu.\n\n" +
+  "Vérifiez dans **Paramètres** que la clé Anthropic est enregistrée et dispose de crédits, " +
+  "ou qu'un modèle de chat Ollama (ex. qwen2.5:3b) est installé sur le serveur."
+
 /**
- * Stratégie de réponse : le provider configuré (Claude si clé renseignée) en
- * priorité ; à défaut (pas de clé / erreur), repli sur Ollama local ; en
- * dernier recours, repli déterministe (stub) — jamais d'erreur côté utilisateur.
+ * Stratégie de réponse, explicite (indépendante du mode global) :
+ *  1) Claude (Anthropic) si une clé est renseignée — prioritaire ;
+ *  2) repli sur Ollama local ;
+ *  3) sinon, message clair — JAMAIS le repli "stub" (qui renverrait un faux
+ *     rapport au lieu d'une réponse de chat).
  */
 async function answer(prompt: LLMPrompt): Promise<string> {
+  const s = await getAppSettings()
+
+  if (s.anthropicApiKey) {
+    try {
+      const out = await new AnthropicProvider(
+        s.anthropicApiKey,
+        s.anthropicModel,
+      ).complete(prompt, { timeoutMs: TIMEOUT_MS })
+      if (out.trim()) return out
+    } catch (e) {
+      console.error("[chat] Anthropic échoué, repli Ollama :", e)
+    }
+  }
+
   try {
-    const out = await complete(prompt, { timeoutMs: TIMEOUT_MS })
+    const out = await new OllamaProvider(
+      s.ollamaBaseUrl,
+      s.ollamaModel,
+    ).complete(prompt, { timeoutMs: TIMEOUT_MS })
     if (out.trim()) return out
   } catch (e) {
-    console.error("[chat] provider principal échoué:", e)
+    console.error("[chat] Ollama échoué :", e)
   }
-  try {
-    const s = await getAppSettings()
-    const out = await new OllamaProvider(s.ollamaBaseUrl, s.ollamaModel).complete(
-      prompt,
-      { timeoutMs: TIMEOUT_MS },
-    )
-    if (out.trim()) return out
-  } catch (e) {
-    console.error("[chat] repli Ollama échoué:", e)
-  }
-  return new StubProvider().complete(prompt)
+
+  return UNAVAILABLE
 }
 
 export async function POST(req: Request) {

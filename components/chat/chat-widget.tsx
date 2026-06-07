@@ -17,6 +17,84 @@ interface Msg {
   content: string
 }
 
+/** Rendu markdown léger (gras, puces, listes numérotées, titres) — sans dépendance. */
+function inline(text: string): React.ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
+    p.startsWith("**") && p.endsWith("**") ? (
+      <strong key={i}>{p.slice(2, -2)}</strong>
+    ) : (
+      <span key={i}>{p}</span>
+    ),
+  )
+}
+
+function FormattedText({ content }: { content: string }) {
+  const blocks: React.ReactNode[] = []
+  let list: { type: "ul" | "ol"; items: string[] } | null = null
+
+  const flush = () => {
+    if (!list) return
+    const items = list.items
+    const cls = "space-y-0.5 pl-4 " + (list.type === "ul" ? "list-disc" : "list-decimal")
+    blocks.push(
+      list.type === "ul" ? (
+        <ul key={blocks.length} className={cls}>
+          {items.map((it, i) => (
+            <li key={i}>{inline(it)}</li>
+          ))}
+        </ul>
+      ) : (
+        <ol key={blocks.length} className={cls}>
+          {items.map((it, i) => (
+            <li key={i}>{inline(it)}</li>
+          ))}
+        </ol>
+      ),
+    )
+    list = null
+  }
+
+  for (const raw of content.split("\n")) {
+    const line = raw.trim()
+    if (!line) {
+      flush()
+      continue
+    }
+    const bullet = line.match(/^[-*]\s+(.*)/)
+    const numbered = line.match(/^\d+\.\s+(.*)/)
+    const heading = line.match(/^#{1,6}\s+(.*)/)
+    if (bullet) {
+      if (list?.type !== "ul") {
+        flush()
+        list = { type: "ul", items: [] }
+      }
+      list.items.push(bullet[1])
+      continue
+    }
+    if (numbered) {
+      if (list?.type !== "ol") {
+        flush()
+        list = { type: "ol", items: [] }
+      }
+      list.items.push(numbered[1])
+      continue
+    }
+    flush()
+    blocks.push(
+      heading ? (
+        <p key={blocks.length} className="font-semibold">
+          {inline(heading[1])}
+        </p>
+      ) : (
+        <p key={blocks.length}>{inline(line)}</p>
+      ),
+    )
+  }
+  flush()
+
+  return <div className="space-y-1.5">{blocks}</div>
+}
+
 const SUGGESTIONS = [
   "Comment l'outil décide-t-il GO / POC / NO GO ?",
   "Quelles obligations RGPD pour une décision automatisée ?",
@@ -175,13 +253,17 @@ export function ChatWidget() {
                 >
                   <div
                     className={cn(
-                      "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                      "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
                       m.role === "user"
-                        ? "rounded-br-sm bg-primary text-primary-foreground"
+                        ? "whitespace-pre-wrap rounded-br-sm bg-primary text-primary-foreground"
                         : "rounded-bl-sm bg-muted text-foreground",
                     )}
                   >
-                    {m.content}
+                    {m.role === "assistant" ? (
+                      <FormattedText content={m.content} />
+                    ) : (
+                      m.content
+                    )}
                   </div>
                 </div>
               ))}
