@@ -31,6 +31,10 @@ COPY --from=build /app/prisma ./prisma
 # résolve l'alias @/* et trouve le code importé (moteur, rapport, RAG…).
 COPY --from=build /app/tsconfig.json ./tsconfig.json
 COPY --from=build /app/lib ./lib
+# FRAMEWORK.md : source de vérité du cadrage V2 (6 socles), lue au runtime
+# par lib/framework.ts et injectée dans les prompts. Sans ce fichier, la V2
+# retombe sur un résumé de secours.
+COPY --from=build /app/FRAMEWORK.md ./FRAMEWORK.md
 
 EXPOSE 3000
 # Applique le schéma puis démarre. `db push` est agnostique du provider
