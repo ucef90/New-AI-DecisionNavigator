@@ -12,6 +12,7 @@ import {
   GearSix,
   ArrowRight,
   BookOpenText,
+  Compass,
   SignIn,
 } from "@phosphor-icons/react/dist/ssr"
 
@@ -24,6 +25,7 @@ const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "AI Pré-Cadrage"
 const links = [
   { href: "/dashboard", label: "Tableau de bord", icon: SquaresFour },
   { href: "/projects/new", label: "Nouveau projet", icon: Plus },
+  { href: "/methode", label: "Méthode", icon: Compass },
   { href: "/knowledge", label: "Connaissances", icon: BookOpenText },
   { href: "/settings", label: "Paramètres", icon: GearSix },
 ]
