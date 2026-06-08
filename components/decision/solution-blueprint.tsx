@@ -1,6 +1,7 @@
 import type { TechType, Verdict } from "@prisma/client"
 import { CaretRight, Info } from "@phosphor-icons/react/dist/ssr"
 
+import { ArchitectureDiagram } from "@/components/decision/architecture-diagram"
 import { TECH_SHORT } from "@/lib/decision/labels"
 
 // Bloc « proposition de solution » — EXEMPLE générique d'architecture cible,
@@ -59,18 +60,6 @@ const STACK: [string, string, string, string][] = [
   ["LLM (option)", "LLM local (Ollama)", "Aide hors données sensibles", "—"],
 ]
 
-const ARCHI_ASCII = `Entrées        Scanner · Bannette GED · Messagerie · Dossier partagé
-   │
-Plateforme     Traefik (TLS/SSO) · NiFi (règles métier)
-   │
-Traitement IA  Découpe → OCR/ICR → Classification → Extraction → Contrôles
-   │
-Données        PostgreSQL · MongoDB · Redis · MinIO (chiffré)
-   │
-Restitution    Front React (arbitrage) · GED Multigest · API SI Métier
-   │
-Transverse     Prometheus/Grafana · ELK · Keycloak (SSO/RBAC)`
-
 export function SolutionBlueprint({
   tech,
   verdict,
@@ -126,9 +115,7 @@ export function SolutionBlueprint({
         </Section>
 
         <Section title="2. Vue logique en couches">
-          <pre className="overflow-x-auto rounded-md bg-muted/50 p-3 font-mono text-xs leading-relaxed text-foreground">
-            {ARCHI_ASCII}
-          </pre>
+          <ArchitectureDiagram />
         </Section>
 
         <Section title="3. Flux de traitement séquencé">

@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache"
 import type { Prisma } from "@prisma/client"
-import { PDFParse } from "pdf-parse"
 
 import { db } from "@/lib/db"
-import { complete, StubProvider } from "@/lib/llm"
+import { extractText } from "@/lib/extract"
+import { complete, resolveActiveProviderName } from "@/lib/llm"
 import {
   retrieve,
   buildKnowledgeBlock,
@@ -45,27 +45,17 @@ export async function analyzeVendor(
 
   if (!content && file && file.size > 0) {
     documentName = file.name
-    const buffer = Buffer.from(await file.arrayBuffer())
-    try {
-      if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-        const parser = new PDFParse({ data: new Uint8Array(buffer) })
-        const parsed = await parser.getText()
-        content = parsed.text
-      } else {
-        content = buffer.toString("utf-8")
-      }
-    } catch {
-      return {
-        error:
-          "Impossible de lire le document. Importez un PDF texte (non scanné) ou collez le contenu.",
-      }
+    const extracted = await extractText(file)
+    if (!extracted.ok) {
+      return { error: extracted.reason ?? "Impossible de lire le document." }
     }
+    content = extracted.text
   }
 
   if (!content || content.trim().length < 20) {
     return {
       error:
-        "Document vide ou trop court. Importez un PDF lisible ou collez le texte de la proposition.",
+        "Document vide ou trop court. Importez un PDF lisible, un Word (.docx), ou collez le texte de la proposition.",
     }
   }
 
@@ -104,30 +94,44 @@ export async function analyzeVendor(
     knowledge,
   )
 
-  // 1) Tentative avec le provider configuré (mode JSON + timeout).
+  // Garde-fou : refuser l'analyse si aucun LLM réel n'est actif. Sinon le
+  // StubProvider renverrait un résultat déterministe trompeur ("tout va bien").
+  const activeProvider = await resolveActiveProviderName()
+  if (activeProvider === "stub") {
+    return {
+      error:
+        "Aucun moteur IA réel n'est configuré : l'analyse ne serait pas fiable. Configure Anthropic ou Ollama dans Paramètres, teste la connexion, puis relance l'analyse.",
+    }
+  }
+
+  // Analyse par le LLM configuré (mode JSON). PAS de repli "stub" silencieux :
+  // un échec renvoie une erreur claire plutôt qu'un faux résultat favorable.
   let result: VendorResult | null = null
   try {
-    // Fenêtre courte : si le LLM local ne répond pas vite, on bascule sur
-    // l'analyse déterministe (basée sur le document) sans faire attendre l'agent.
     const raw = await complete(prompt, {
       json: true,
-      timeoutMs: 12_000,
+      timeoutMs: 60_000,
     })
     result = parseVendor(raw)
   } catch (e) {
     console.error("[analyzeVendor] LLM error:", e)
   }
-
-  // 2) Repli déterministe si l'IA est indisponible ou illisible (jamais d'échec bloquant).
   if (!result) {
-    console.warn("[analyzeVendor] repli déterministe (stub) utilisé.")
-    try {
-      result = parseVendor(await new StubProvider().complete(prompt))
-    } catch {
-      result = null
+    return {
+      error:
+        "Le moteur IA n'a pas pu analyser le document (indisponible ou réponse illisible). Vérifie la configuration dans Paramètres et réessaie.",
     }
   }
-  if (!result) return { error: "Analyse indisponible. Réessayez." }
+
+  // Document hors-sujet / pas une vraie offre : on n'enregistre PAS de fausse
+  // analyse — c'est ce qui donnait l'impression que "n'importe quel document est bon".
+  if (!result.documentIsRelevant) {
+    return {
+      error:
+        result.irrelevantReason ||
+        "Ce document ne semble pas être une proposition fournisseur en lien avec ce projet. Importe l'offre, le devis ou la réponse à appel d'offres du fournisseur.",
+    }
+  }
 
   const created = await db.vendorAnalysis.create({
     data: {
@@ -157,4 +161,32 @@ export async function analyzeVendor(
 
   revalidatePath(`/projects/${projectId}/vendor`)
   return { ok: true }
+}
+
+// Enregistre la note manuelle (0-100) attribuée par l'utilisateur à une offre.
+// Une valeur nulle/vide efface la note.
+export async function setVendorScore(
+  projectId: string,
+  analysisId: string,
+  score: number | null,
+): Promise<void> {
+  const clean =
+    score === null || Number.isNaN(score)
+      ? null
+      : Math.max(0, Math.min(100, Math.round(score)))
+
+  await db.vendorAnalysis.updateMany({
+    where: { id: analysisId, projectId },
+    data: { userScore: clean },
+  })
+  revalidatePath(`/projects/${projectId}/vendor`)
+}
+
+// Supprime une analyse fournisseur du projet.
+export async function deleteVendorAnalysis(
+  projectId: string,
+  analysisId: string,
+): Promise<void> {
+  await db.vendorAnalysis.deleteMany({ where: { id: analysisId, projectId } })
+  revalidatePath(`/projects/${projectId}/vendor`)
 }

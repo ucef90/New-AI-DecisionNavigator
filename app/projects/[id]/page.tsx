@@ -4,6 +4,7 @@ import {
   ArrowRight,
   ClipboardText,
   FileText,
+  Sparkle,
   UploadSimple,
 } from "@phosphor-icons/react/dist/ssr"
 import type { Icon } from "@phosphor-icons/react"
@@ -115,12 +116,18 @@ export default async function ProjectPage({
       ) : null}
 
       {/* Navigation du projet */}
-      <div className="grid grid-cols-1 divide-y rounded-xl border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <div className="grid grid-cols-1 divide-y rounded-xl border sm:grid-cols-2 sm:divide-x lg:grid-cols-4 lg:divide-y-0">
         <NavTile
           href={`/projects/${project.id}/wizard`}
           icon={ClipboardText}
-          title="Parcours"
-          description="Répondre aux questions de cadrage."
+          title="Parcours (V1)"
+          description="Questionnaire de cadrage classique."
+        />
+        <NavTile
+          href={`/projects/${project.id}/cadrage-v2`}
+          icon={Sparkle}
+          title="Cadrage V2"
+          description="Framework 6 socles : questions auto + scoring."
         />
         <NavTile
           href={`/projects/${project.id}/results`}

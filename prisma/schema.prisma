@@ -43,6 +43,8 @@ model Project {
   reports          Report[]
   attachments      Attachment[]
   auditLogs        AuditLog[]
+  solutionProposal SolutionProposal?
+  frameworkAssessment FrameworkAssessment?
 }
 
 model Attachment {
@@ -155,6 +157,7 @@ model VendorAnalysis {
   questions        Json // [{ question, why }]
   recommendations  String?
   recommendation   VendorRecommendation?
+  userScore        Int? // note manuelle attribuée par l'utilisateur (0-100)
   createdAt        DateTime              @default(now())
 }
 
@@ -177,6 +180,45 @@ model Report {
 enum ReportFormat {
   PDF
   MARKDOWN
+}
+
+/// Proposition de solution technique détaillée, générée par le LLM à partir du
+/// cadrage du projet (une par projet, remplacée à chaque régénération).
+/// `content` = objet structuré, voir SolutionProposalData dans lib/prompts/solution.ts.
+model SolutionProposal {
+  id          String   @id @default(uuid())
+  projectId   String   @unique
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  content     Json
+  llmProvider String?
+  llmModel    String?
+  generatedAt DateTime @default(now())
+}
+
+/// V2 — Cadrage basé sur le Framework 6 socles (une évaluation par projet).
+/// Chaque étape du pipeline persiste son artefact (JSON). Voir lib/v2/pipeline.ts
+/// et lib/prompts/framework.ts pour la forme des objets.
+model FrameworkAssessment {
+  id        String  @id @default(uuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  docAnalysis Json? // DocAnalysis
+  questions   Json? // GeneratedQuestion[]
+  answers     Json? // [{ id, socle, question, answer }]
+  scoring     Json? // ScoringResult
+  report      String? // rapport markdown
+
+  // Champs dénormalisés pour l'affichage / les listes
+  decision     String? // GO_PRODUCTION | GO_POC | CONDITIONNEL | NO_GO
+  scoreGlobal  Int? // 0..55
+  pourcentage  Int? // 0..100
+  // Étape atteinte : CREATED | ANALYZED | QUESTIONS | SCORED | REPORTED
+  status       String  @default("CREATED")
+  llmProvider  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
 }
 
 /// Réglages applicatifs persistés (ligne unique "singleton"), dont le choix LLM.

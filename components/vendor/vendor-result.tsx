@@ -152,6 +152,11 @@ export function VendorResult({ analysis }: { analysis: VendorAnalysis }) {
                     <div className="space-y-0.5">
                       <p className="text-sm font-medium">{f.claim}</p>
                       <p className="text-sm text-muted-foreground">{f.concern}</p>
+                      {f.evidence ? (
+                        <blockquote className="mt-1 border-l-2 border-border pl-2 text-xs italic text-muted-foreground">
+                          « {f.evidence} »
+                        </blockquote>
+                      ) : null}
                     </div>
                   </div>
                 </li>

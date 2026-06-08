@@ -8,6 +8,7 @@ import { complete } from "@/lib/llm"
 import { retrieve, buildKnowledgeBlock } from "@/lib/rag"
 import { generateDecision } from "@/lib/engine/generate"
 import { generateReport } from "@/lib/report/generate"
+import { generateSolution } from "@/lib/solution/generate"
 import {
   buildReformulationPrompt,
   parseReformulation,
@@ -93,6 +94,13 @@ export async function completeWizard(projectId: string): Promise<void> {
   await generateDecision(projectId)
   // Génère le rapport (Prompt 3 → markdown stocké).
   await generateReport(projectId)
+  // Génère la proposition de solution technique détaillée (Prompt 4).
+  // Best-effort : ne doit jamais bloquer la clôture du parcours.
+  try {
+    await generateSolution(projectId)
+  } catch (e) {
+    console.error("[completeWizard] generateSolution:", e)
+  }
 
   await db.project.update({
     where: { id: projectId },

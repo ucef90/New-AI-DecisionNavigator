@@ -43,12 +43,12 @@ export function VendorForm({ projectId }: { projectId: string }) {
       <input type="hidden" name="projectId" value={projectId} />
 
       <div className="space-y-2">
-        <Label htmlFor="file">Document fournisseur (PDF ou .txt)</Label>
+        <Label htmlFor="file">Document fournisseur (PDF, Word ou .txt)</Label>
         <input
           id="file"
           name="file"
           type="file"
-          accept=".pdf,.txt"
+          accept=".pdf,.docx,.txt"
           className="block w-full cursor-pointer rounded-md border border-input bg-transparent text-sm text-muted-foreground file:mr-3 file:cursor-pointer file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-accent"
         />
       </div>

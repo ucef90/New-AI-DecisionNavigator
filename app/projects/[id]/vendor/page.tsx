@@ -1,11 +1,13 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "@phosphor-icons/react/dist/ssr"
+import { ArrowLeft, Trash } from "@phosphor-icons/react/dist/ssr"
 
+import { deleteVendorAnalysis } from "@/app/projects/[id]/vendor/actions"
 import { db } from "@/lib/db"
 import { PageContainer } from "@/components/layout/page-container"
 import { Reveal } from "@/components/motion/reveal"
 import { Card, CardContent } from "@/components/ui/card"
+import { VendorComparison, type VendorRow } from "@/components/vendor/vendor-comparison"
 import { VendorForm } from "@/components/vendor/vendor-form"
 import { VendorResult } from "@/components/vendor/vendor-result"
 
@@ -20,15 +22,23 @@ export default async function VendorPage({
     where: { id: params.id },
     include: {
       decision: true,
-      vendorAnalyses: { orderBy: { createdAt: "desc" }, take: 1 },
+      vendorAnalyses: { orderBy: { createdAt: "desc" } },
     },
   })
   if (!project) notFound()
 
-  const analysis = project.vendorAnalyses[0]
+  const analyses = project.vendorAnalyses
+  const rows: VendorRow[] = analyses.map((a) => ({
+    id: a.id,
+    label: a.documentName ?? "Offre",
+    fitScore: a.fitScore,
+    maturityScore: a.maturityScore,
+    recommendation: a.recommendation,
+    userScore: a.userScore,
+  }))
 
   return (
-    <PageContainer className="max-w-3xl space-y-8">
+    <PageContainer className="max-w-4xl space-y-8">
       <div>
         <Link
           href={`/projects/${project.id}`}
@@ -38,11 +48,12 @@ export default async function VendorPage({
           Retour au projet
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Analyse d&apos;une proposition fournisseur
+          Analyse &amp; comparaison des propositions fournisseurs
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Importez la proposition reçue : l&apos;outil l&apos;évalue au regard de
-          votre projet et prépare les questions à poser.
+          Importez chaque proposition reçue : l&apos;outil les évalue au regard de
+          votre projet, prépare les questions à poser, et vous aide à désigner la
+          meilleure offre.
         </p>
       </div>
 
@@ -63,13 +74,60 @@ export default async function VendorPage({
         </Reveal>
       )}
 
-      {analysis ? (
+      {/* Tableau comparatif (dès 2 offres) */}
+      {rows.length >= 2 ? (
+        <Reveal delay={0.05}>
+          <VendorComparison projectId={project.id} rows={rows} />
+        </Reveal>
+      ) : null}
+
+      {/* Détail de chaque analyse */}
+      {analyses.length > 0 ? (
         <Reveal delay={0.08}>
           <div className="space-y-4">
             <h2 className="text-sm font-medium text-muted-foreground">
-              Dernière analyse
+              {analyses.length > 1
+                ? `${analyses.length} analyses`
+                : "Dernière analyse"}
             </h2>
-            <VendorResult analysis={analysis} />
+            {analyses.map((a) => {
+              const del = deleteVendorAnalysis.bind(null, project.id, a.id)
+              return (
+                <div key={a.id} className="space-y-3 rounded-lg border p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {a.documentName ?? "Offre"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {a.createdAt.toLocaleDateString("fr-FR", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <form action={del}>
+                      <button
+                        type="submit"
+                        className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-600"
+                      >
+                        <Trash className="size-3.5" aria-hidden />
+                        Supprimer
+                      </button>
+                    </form>
+                  </div>
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm text-muted-foreground transition-colors hover:text-foreground">
+                      Voir l&apos;analyse détaillée
+                    </summary>
+                    <div className="mt-4">
+                      <VendorResult analysis={a} />
+                    </div>
+                  </details>
+                </div>
+              )
+            })}
           </div>
         </Reveal>
       ) : null}

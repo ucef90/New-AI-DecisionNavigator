@@ -37,6 +37,8 @@ import { AlertItem } from "@/components/decision/alert-item"
 import { TechRadar } from "@/components/decision/tech-radar"
 import { TechRadarDetail } from "@/components/decision/tech-radar-detail"
 import { SolutionBlueprint } from "@/components/decision/solution-blueprint"
+import { SolutionProposal } from "@/components/decision/solution-proposal"
+import type { SolutionProposalData } from "@/lib/prompts/solution"
 import { RiskExplainer } from "@/components/decision/risk-explainer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -88,7 +90,12 @@ export default async function ResultsPage({
 }) {
   const project = await db.project.findUnique({
     where: { id: params.id },
-    include: { decision: true, regulatoryAlerts: true, answers: true },
+    include: {
+      decision: true,
+      regulatoryAlerts: true,
+      answers: true,
+      solutionProposal: true,
+    },
   })
 
   if (!project) notFound()
@@ -294,12 +301,21 @@ export default async function ResultsPage({
         </Card>
       </Reveal>
 
-      {/* Proposition de solution (exemple) */}
+      {/* Proposition de solution — générée sur mesure si disponible, sinon exemple */}
       <Reveal delay={0.18}>
-        <SolutionBlueprint
-          tech={decision.techRecommendation}
-          verdict={decision.verdict}
-        />
+        {project.solutionProposal ? (
+          <SolutionProposal
+            data={
+              project.solutionProposal.content as unknown as SolutionProposalData
+            }
+            tech={decision.techRecommendation}
+          />
+        ) : (
+          <SolutionBlueprint
+            tech={decision.techRecommendation}
+            verdict={decision.verdict}
+          />
+        )}
       </Reveal>
 
       {/* Prochaines étapes */}

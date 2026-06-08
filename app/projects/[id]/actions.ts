@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { PDFParse } from "pdf-parse"
 
 import { db } from "@/lib/db"
+import { extractText } from "@/lib/extract"
 import { analyzeProjectContext } from "@/lib/context/generate"
 import type { ContextResult } from "@/lib/prompts/context"
 
@@ -20,41 +20,50 @@ export async function uploadDocument(
   formData: FormData,
 ): Promise<UploadState> {
   const projectId = String(formData.get("projectId") ?? "")
-  const file = formData.get("file") as File | null
+  // Plusieurs fichiers peuvent être importés en une fois (champ "file" multiple).
+  const files = formData
+    .getAll("file")
+    .filter((f): f is File => f instanceof File && f.size > 0)
 
-  if (!file || file.size === 0) return { error: "Aucun fichier sélectionné." }
-  if (file.size > MAX_SIZE) {
-    return { error: "Fichier trop volumineux (10 Mo maximum)." }
-  }
+  if (files.length === 0) return { error: "Aucun fichier sélectionné." }
 
-  const buffer = Buffer.from(await file.arrayBuffer())
-  let text = ""
-  try {
-    if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-      const parser = new PDFParse({ data: new Uint8Array(buffer) })
-      text = (await parser.getText()).text
-    } else {
-      text = buffer.toString("utf-8")
+  const skipped: string[] = []
+  let imported = 0
+
+  for (const file of files) {
+    if (file.size > MAX_SIZE) {
+      skipped.push(`${file.name} (trop volumineux, 10 Mo max)`)
+      continue
     }
-  } catch {
-    text = "" // l'aperçu texte échoue mais le document reste référencé
+
+    // Extraction du texte (PDF texte, Word .docx, texte brut). Si elle échoue
+    // (PDF scanné, format non géré…), le document reste référencé sans aperçu.
+    const extracted = await extractText(file)
+    const text = extracted.ok ? extracted.text : ""
+
+    await db.attachment.create({
+      data: {
+        projectId,
+        name: file.name,
+        mimeType: file.type || null,
+        size: file.size,
+        text: text.slice(0, 20000) || null,
+      },
+    })
+    await db.auditLog.create({
+      data: { projectId, action: "DOCUMENT_UPLOADED", detail: { name: file.name } },
+    })
+    imported++
   }
 
-  await db.attachment.create({
-    data: {
-      projectId,
-      name: file.name,
-      mimeType: file.type || null,
-      size: file.size,
-      text: text.slice(0, 20000) || null,
-    },
-  })
-  await db.auditLog.create({
-    data: { projectId, action: "DOCUMENT_UPLOADED", detail: { name: file.name } },
-  })
+  if (imported === 0) {
+    return { error: `Aucun document importé. Ignoré : ${skipped.join(", ")}` }
+  }
 
   revalidatePath(`/projects/${projectId}`)
-  return { ok: true }
+  return skipped.length > 0
+    ? { ok: true, error: `${imported} document(s) importé(s). Ignoré : ${skipped.join(", ")}` }
+    : { ok: true }
 }
 
 export async function deleteDocument(

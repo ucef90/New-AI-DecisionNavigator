@@ -76,7 +76,8 @@ export function ProjectDocuments({
         <input
           name="file"
           type="file"
-          accept=".pdf,.txt,.md,.csv"
+          multiple
+          accept=".pdf,.docx,.txt,.md,.csv"
           className="flex-1 cursor-pointer rounded-md border border-input bg-transparent text-sm text-muted-foreground file:mr-3 file:cursor-pointer file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground hover:file:bg-accent"
         />
         <SubmitButton />
