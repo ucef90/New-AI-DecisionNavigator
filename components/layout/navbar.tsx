@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { SignOutButton } from "@/components/layout/sign-out-button"
+import { VersionToggle } from "@/components/layout/version-toggle"
 
 const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "AI Pré-Cadrage"
 
@@ -146,6 +147,7 @@ export function Navbar({ authed = false }: { authed?: boolean }) {
                 aria-hidden
               />
 
+              <VersionToggle />
               <ThemeToggle />
               <SignOutButton />
             </>
@@ -210,6 +212,7 @@ export function Navbar({ authed = false }: { authed?: boolean }) {
         ) : null}
 
         <div className="ml-auto flex items-center gap-1">
+          {authed ? <VersionToggle /> : null}
           <ThemeToggle />
           {authed ? (
             <SignOutButton />
