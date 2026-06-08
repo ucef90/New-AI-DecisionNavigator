@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useFormState, useFormStatus } from "react-dom"
 import { CircleNotch } from "@phosphor-icons/react/dist/ssr"
 
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,22 @@ const SOCLE_TITLES: Record<number, string> = {
   6: "Socle 6 — Gouvernance & conformité",
 }
 
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" disabled={pending} size="lg">
+      {pending ? (
+        <>
+          <CircleNotch className="size-4 animate-spin" aria-hidden />
+          Analyse en cours…
+        </>
+      ) : (
+        "Calculer le score & la décision"
+      )}
+    </Button>
+  )
+}
+
 export function QuestionsForm({
   questions,
   action,
@@ -23,10 +39,7 @@ export function QuestionsForm({
   questions: GeneratedQuestion[]
   action: (prev: V2State, form: FormData) => Promise<V2State>
 }) {
-  const [state, formAction, pending] = useActionState<V2State, FormData>(
-    action,
-    {},
-  )
+  const [state, formAction] = useFormState(action, {})
 
   // Regroupe par socle, dans l'ordre.
   const bySocle = new Map<number, GeneratedQuestion[]>()
@@ -110,16 +123,7 @@ export function QuestionsForm({
       ) : null}
 
       <div className="sticky bottom-4 flex justify-end">
-        <Button type="submit" disabled={pending} size="lg">
-          {pending ? (
-            <>
-              <CircleNotch className="size-4 animate-spin" aria-hidden />
-              Analyse en cours…
-            </>
-          ) : (
-            "Calculer le score & la décision"
-          )}
-        </Button>
+        <SubmitButton />
       </div>
     </form>
   )
